@@ -103,7 +103,7 @@ export default function Home() {
         </p>
 
         {/* Entry mode tabs */}
-        <div className="flex items-center justify-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
           {([["text", "✍️ من نص"], ["image", "🖼️ من صورة"], ["url", "🔗 من رابط"]] as [Entry, string][]).map(([k, label]) => (
             <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>
               {label}

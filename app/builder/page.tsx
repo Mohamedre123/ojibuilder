@@ -158,6 +158,7 @@ export default function Builder() {
   const [selected, setSelected] = useState<Selected | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [histVer, setHistVer] = useState(0);
+  const [mobileView, setMobileView] = useState<"chat" | "work">("work");
 
   const startedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -299,6 +300,7 @@ export default function Builder() {
       setSelected(null);
     }
     setTab("code");
+    setMobileView("work"); // on phones, surface the build as it streams
     return ac;
   }
 
@@ -524,13 +526,13 @@ export default function Builder() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--oji-border)] bg-[var(--oji-surface)]">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">← الرئيسية</button>
-          <span className="font-extrabold">oji <span className="oji-gradient-text">builder</span></span>
+    <div className="app-h flex flex-col">
+      <header className="flex items-center gap-3 px-3 sm:px-4 py-3 border-b border-[var(--oji-border)] bg-[var(--oji-surface)]">
+        <div className="flex items-center gap-3 shrink-0">
+          <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">←</button>
+          <span className="font-extrabold whitespace-nowrap">oji <span className="oji-gradient-text">builder</span></span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto scroll-touch ms-auto [&>*]:shrink-0">
           <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden">
             <button onClick={undo} disabled={!canUndo || loading} title="تراجع" className="px-2.5 py-1.5 text-sm disabled:opacity-30 hover:bg-[var(--oji-surface-2)]">↶</button>
             <button onClick={redo} disabled={!canRedo || loading} title="إعادة" className="px-2.5 py-1.5 text-sm disabled:opacity-30 hover:bg-[var(--oji-surface-2)] border-r border-[var(--oji-border)]">↷</button>
@@ -550,9 +552,15 @@ export default function Builder() {
         </div>
       </header>
 
+      {/* Mobile view switch */}
+      <div className="lg:hidden flex shrink-0 border-b border-[var(--oji-border)] bg-[var(--oji-surface)]">
+        <button onClick={() => setMobileView("work")} className={`flex-1 py-2.5 text-sm ${mobileView === "work" ? "bg-[var(--oji-surface-2)] font-bold" : "text-[var(--oji-muted)]"}`}>المعاينة</button>
+        <button onClick={() => setMobileView("chat")} className={`flex-1 py-2.5 text-sm ${mobileView === "chat" ? "bg-[var(--oji-surface-2)] font-bold" : "text-[var(--oji-muted)]"}`}>المحادثة والأدوات</button>
+      </div>
+
       <div className="flex-1 flex min-h-0">
-        <aside className="w-[340px] shrink-0 border-l border-[var(--oji-border)] bg-[var(--oji-surface)] flex flex-col">
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <aside className={`w-full lg:w-[340px] shrink-0 border-l border-[var(--oji-border)] bg-[var(--oji-surface)] flex-col ${mobileView === "chat" ? "flex" : "hidden"} lg:flex`}>
+          <div className="flex-1 overflow-y-auto scroll-touch p-4 space-y-3">
             {messages.map((m, i) => (
               <div key={i} className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words ${m.role === "user" ? "bg-[var(--oji-surface-2)] border border-[var(--oji-border)]" : "bg-[var(--oji-primary)]/10 border border-[var(--oji-primary)]/30 text-[var(--oji-text)]"}`}>
                 {m.text}
@@ -619,7 +627,7 @@ export default function Builder() {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-w-0 bg-[var(--oji-bg)]">
+        <main className={`flex-1 flex-col min-w-0 bg-[var(--oji-bg)] ${mobileView === "work" ? "flex" : "hidden"} lg:flex`}>
           <div className="flex items-center gap-1 px-4 py-2 border-b border-[var(--oji-border)]">
             {(["preview", "code"] as Tab[]).map((t) => (
               <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-sm flex items-center gap-2 ${tab === t ? "bg-[var(--oji-surface-2)] font-bold" : "text-[var(--oji-muted)] hover:text-white"}`}>

@@ -17,9 +17,22 @@ html, body {
   background: var(--oji-bg);
   color: var(--oji-text);
   font-family: "Cairo", "Tajawal", system-ui, sans-serif;
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 * { box-sizing: border-box; }
+
+img, iframe, video, canvas { max-width: 100%; }
+
+/* Cross-browser full-height: 100vh fallback, 100dvh where supported (fixes iOS Safari). */
+.app-h { height: 100vh; height: 100dvh; }
+
+/* Touch targets + smooth momentum scrolling on iOS */
+button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
+.scroll-touch { -webkit-overflow-scrolling: touch; }
 
 .oji-gradient-text {
   background: linear-gradient(90deg, var(--oji-primary), var(--oji-accent));

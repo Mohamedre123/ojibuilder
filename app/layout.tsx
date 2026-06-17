@@ -1,9 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "oji builder — ابنِ موقعك بالذكاء الاصطناعي",
   description: "اكتب فكرتك بالعربي، واحصل على موقع أو تطبيق كامل في ثوانٍ. عدّل أي جزء بالأمر أو يدويًا.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#0b1120",
 };
 
 export default function RootLayout({
