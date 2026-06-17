@@ -3,7 +3,7 @@ import { client, MODELS } from "@/lib/anthropic";
 import { EDIT_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {

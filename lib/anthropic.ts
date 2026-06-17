@@ -2,14 +2,16 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  maxRetries: 4, // resilience against transient connection errors
+  timeout: 280_000,
 });
 
-// Latest, most capable models for oji builder.
+// Models for oji builder. "auto" favors speed; "opus" favors quality.
 export const MODELS = {
-  // High quality generation (mirrors stunning's "Opus" mode).
+  // Highest quality (slower) — "متقدّم".
   opus: "claude-opus-4-8",
-  // Fast default (mirrors stunning's "Auto" mode).
-  auto: "claude-sonnet-4-6",
+  // Fast default — "تلقائي". Haiku generates HTML much faster per token.
+  auto: "claude-haiku-4-5-20251001",
 } as const;
 
 // Strip any stray markdown fences / prose so the iframe only ever sees pure HTML.

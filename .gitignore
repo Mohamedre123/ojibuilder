@@ -5,3 +5,9 @@ node_modules
 .DS_Store
 .claude
 next-env.d.ts
+
+# test artifacts
+*.local.html
+shell*.html
+page*.html
+gen_*.html

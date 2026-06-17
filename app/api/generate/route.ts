@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client, MODELS } from "@/lib/anthropic";
-import { GENERATION_SYSTEM_PROMPT } from "@/lib/prompts";
+import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
     }
   }
-  const rl = rateLimit(`gen:${clientIp(req)}`, 15, 60_000);
+  const rl = rateLimit(`gen:${clientIp(req)}`, 40, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "طلبات كثيرة جدًا، انتظر قليلًا ثم حاول مجددًا" },
@@ -22,15 +22,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { prompt, mode } = await req.json();
-  if (!prompt || typeof prompt !== "string") {
-    return NextResponse.json({ error: "الوصف مطلوب" }, { status: 400 });
-  }
-  if (prompt.length > LIMITS.MAX_PROMPT_CHARS) {
-    return NextResponse.json({ error: "الوصف طويل جدًا" }, { status: 413 });
+  const { prompt, mode, step, pageId, pageTitle, context } = await req.json();
+  if (!prompt || typeof prompt !== "string" || prompt.length > LIMITS.MAX_PROMPT_CHARS) {
+    return NextResponse.json({ error: "الوصف مطلوب أو طويل جدًا" }, { status: 400 });
   }
 
   const model = mode === "opus" ? MODELS.opus : MODELS.auto;
+
+  let system: string;
+  let userContent: string;
+  if (step === "page") {
+    system = PAGE_SYSTEM_PROMPT;
+    userContent = `وصف الموقع الأصلي: ${prompt}\n\nالهيكل الحالي للموقع (للاتساق في الألوان والطابع):\n${String(context || "").slice(0, LIMITS.MAX_HTML_CHARS)}\n\n---\nابنِ المحتوى الداخلي للصفحة ذات data-page="${pageId}" وعنوانها "${pageTitle}".`;
+  } else {
+    system = SHELL_SYSTEM_PROMPT;
+    userContent = `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}`;
+  }
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -38,15 +45,12 @@ export async function POST(req: NextRequest) {
       try {
         const ai = client.messages.stream({
           model,
-          max_tokens: 16000,
-          system: GENERATION_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: `ابنِ هذا الموقع:\n\n${prompt}` }],
+          max_tokens: 8000,
+          system,
+          messages: [{ role: "user", content: userContent }],
         });
         for await (const event of ai) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
             controller.enqueue(encoder.encode(event.delta.text));
           }
         }

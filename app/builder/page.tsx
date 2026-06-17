@@ -11,9 +11,11 @@ interface Selected {
   tag: string;
   html: string;
 }
-
 type Mode = "auto" | "opus";
 type Tab = "preview" | "code";
+type LastReq =
+  | { kind: "site"; prompt: string }
+  | { kind: "edit"; instruction: string };
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -22,14 +24,52 @@ function cleanHtml(raw: string): string {
   out = out.replace(/```html\s*/gi, "").replace(/```/g, "");
   const i = out.search(/<!doctype html/i);
   if (i > 0) out = out.slice(i);
-  // strip any leftover editor runtime, just in case
   out = out
     .replace(/<style id="__oji_edit">[\s\S]*?<\/style>/g, "")
     .replace(/<script id="__oji_edit_js">[\s\S]*?<\/script>/g, "");
   return out;
 }
 
-// Runtime injected into the preview iframe to enable click-to-edit.
+// Clean a page's inner-HTML fragment returned by the AI.
+function cleanInner(raw: string): string {
+  let o = raw
+    .replace(/<!--OJI_ERROR:[\s\S]*?-->/g, "")
+    .replace(/```html\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  // Only unwrap if the model wrongly wrapped everything in a single
+  // <section data-page="..."> — never touch legitimate inner <section>s.
+  const m = o.match(/^<section[^>]*\bdata-page\b[^>]*>([\s\S]*)<\/section>\s*$/i);
+  if (m) o = m[1].trim();
+  return o.trim();
+}
+
+function parsePages(fullHtml: string): { id: string; title: string }[] {
+  const doc = new DOMParser().parseFromString(fullHtml, "text/html");
+  const seen = new Set<string>();
+  const pages: { id: string; title: string }[] = [];
+  doc.querySelectorAll("[data-nav]").forEach((a) => {
+    const id = a.getAttribute("data-nav");
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    pages.push({ id, title: (a.textContent || id).trim() });
+  });
+  return pages;
+}
+
+function isSectionEmpty(fullHtml: string, id: string): boolean {
+  const doc = new DOMParser().parseFromString(fullHtml, "text/html");
+  const s = doc.querySelector(`[data-page="${CSS.escape(id)}"]`);
+  return s ? s.innerHTML.trim().length < 80 : false;
+}
+
+function injectPage(fullHtml: string, id: string, inner: string): string {
+  const doc = new DOMParser().parseFromString(fullHtml, "text/html");
+  const s = doc.querySelector(`[data-page="${CSS.escape(id)}"]`);
+  if (s) s.innerHTML = inner;
+  return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+}
+
 const EDITOR_RUNTIME = `
 <style id="__oji_edit">
   .__oji_hl{ outline:2px dashed #14b8a6 !important; outline-offset:2px; cursor:pointer; }
@@ -74,10 +114,22 @@ const EDITOR_RUNTIME = `
 })();
 </script>
 `;
-
 function injectEditor(doc: string): string {
   if (doc.includes("</body>")) return doc.replace("</body>", EDITOR_RUNTIME + "</body>");
   return doc + EDITOR_RUNTIME;
+}
+
+function mapError(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  const low = raw.toLowerCase();
+  if (e instanceof DOMException && e.name === "AbortError")
+    return "استغرق الطلب وقتًا طويلًا أو أُلغي. جرّب مجددًا.";
+  if (e instanceof TypeError) return "خطأ في الاتصال — تأكد أن الخادم يعمل، ثم أعد المحاولة.";
+  if (low.includes("x-api-key") || low.includes("authentication") || low.includes("401"))
+    return "مفتاح Anthropic غير صحيح أو منتهي الصلاحية.";
+  if (low.includes("credit") || low.includes("billing") || low.includes("insufficient") || low.includes("quota"))
+    return "لا يوجد رصيد كافٍ في حساب Anthropic. أضف رصيدًا ثم أعد المحاولة.";
+  return raw;
 }
 
 // ---- component -------------------------------------------------------------
@@ -100,7 +152,7 @@ export default function Builder() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const lastReqRef = useRef<{ url: string; body: Record<string, unknown>; doneMsg: string } | null>(null);
+  const lastReqRef = useRef<LastReq | null>(null);
   const htmlRef = useRef("");
   htmlRef.current = html;
 
@@ -108,7 +160,6 @@ export default function Builder() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Receive edits coming back from inside the preview iframe.
   useEffect(() => {
     function onMsg(ev: MessageEvent) {
       const d = ev.data;
@@ -140,17 +191,45 @@ export default function Builder() {
       return;
     }
     setMessages([{ role: "user", text: prompt }]);
-    streamRequest("/api/generate", { prompt, mode }, "تم بناء موقعك! اطلب أي تعديل، أو فعّل التعديل اليدوي.");
+    generateSite(prompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function streamRequest(url: string, body: Record<string, unknown>, doneMsg: string) {
-    lastReqRef.current = { url, body, doneMsg };
+  // Low-level streaming reader. Calls onChunk(buffer) live; returns final text.
+  async function streamText(
+    body: Record<string, unknown>,
+    signal: AbortSignal,
+    onChunk?: (buf: string) => void
+  ): Promise<string> {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      const d = await res.json().catch(() => ({ error: `فشل الطلب (${res.status})` }));
+      throw new Error(d.error || `فشل الطلب (${res.status})`);
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      onChunk?.(buf);
+    }
+    const errMatch = buf.match(/<!--OJI_ERROR:([\s\S]*?)-->/);
+    if (errMatch) throw new Error(errMatch[1]);
+    if (!buf.trim()) throw new Error("لم يصل أي محتوى من الخادم");
+    return buf;
+  }
+
+  function beginRequest(): AbortController {
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
-    const timeout = setTimeout(() => ac.abort(), 180_000);
-
     setLoading(true);
     setError("");
     if (editMode) {
@@ -158,15 +237,67 @@ export default function Builder() {
       setSelected(null);
     }
     setTab("code");
+    return ac;
+  }
 
-    let buf = "";
-    let lastPreview = 0;
-    let gotChunk = false;
+  async function generateSite(prompt: string) {
+    lastReqRef.current = { kind: "site", prompt };
+    const ac = beginRequest();
+    const timeout = setTimeout(() => ac.abort(), 290_000);
     try {
-      const res = await fetch(url, {
+      setMessages((m) => [...m, { role: "system", text: "⏳ أبني الهيكل والصفحة الرئيسية..." }]);
+      let lastP = 0;
+      const shellRaw = await streamText({ prompt, mode, step: "shell" }, ac.signal, (buf) => {
+        const c = cleanHtml(buf);
+        setHtml(c);
+        const now = Date.now();
+        if (now - lastP > 400) {
+          setPreviewHtml(c);
+          lastP = now;
+        }
+      });
+      let current = cleanHtml(shellRaw);
+      setHtml(current);
+      setPreviewHtml(current);
+      setTab("preview");
+      sessionStorage.setItem("oji:html", current);
+
+      const pages = parsePages(current);
+      const toFill = pages.filter((p) => isSectionEmpty(current, p.id));
+      for (const pg of toFill) {
+        setMessages((m) => [...m, { role: "system", text: `⏳ أبني صفحة: ${pg.title}...` }]);
+        const innerRaw = await streamText(
+          { prompt, mode, step: "page", pageId: pg.id, pageTitle: pg.title, context: current },
+          ac.signal
+        );
+        current = injectPage(current, pg.id, cleanInner(innerRaw));
+        setHtml(current);
+        setPreviewHtml(current);
+        sessionStorage.setItem("oji:html", current);
+      }
+      setMessages((m) => [
+        ...m,
+        { role: "system", text: "تم بناء موقعك بالكامل ✓ اطلب أي تعديل أو فعّل التعديل اليدوي." },
+      ]);
+    } catch (e) {
+      setError(mapError(e));
+      setTab(htmlRef.current ? "preview" : "code");
+    } finally {
+      clearTimeout(timeout);
+      setLoading(false);
+    }
+  }
+
+  async function runEdit(instruction: string) {
+    lastReqRef.current = { kind: "edit", instruction };
+    const ac = beginRequest();
+    const timeout = setTimeout(() => ac.abort(), 290_000);
+    try {
+      // edit goes through the dedicated endpoint
+      const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ html: htmlRef.current, instruction, mode }),
         signal: ac.signal,
       });
       if (!res.ok || !res.body) {
@@ -174,46 +305,32 @@ export default function Builder() {
         throw new Error(d.error || `فشل الطلب (${res.status})`);
       }
       const reader = res.body.getReader();
-      const decoder = new TextDecoder();
+      const dec = new TextDecoder();
+      let buf = "";
+      let lastP = 0;
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        gotChunk = true;
-        buf += decoder.decode(value, { stream: true });
-        const clean = cleanHtml(buf);
-        setHtml(clean);
+        buf += dec.decode(value, { stream: true });
+        const c = cleanHtml(buf);
+        setHtml(c);
         const now = Date.now();
-        if (now - lastPreview > 400) {
-          setPreviewHtml(clean);
-          lastPreview = now;
+        if (now - lastP > 400) {
+          setPreviewHtml(c);
+          lastP = now;
         }
       }
       const errMatch = buf.match(/<!--OJI_ERROR:([\s\S]*?)-->/);
       if (errMatch) throw new Error(errMatch[1]);
-      if (!gotChunk || !buf.trim()) throw new Error("لم يصل أي محتوى من الخادم");
-
+      if (!buf.trim()) throw new Error("لم يصل أي محتوى من الخادم");
       const finalHtml = cleanHtml(buf);
       setHtml(finalHtml);
       setPreviewHtml(finalHtml);
       sessionStorage.setItem("oji:html", finalHtml);
       setTab("preview");
-      setMessages((m) => [...m, { role: "system", text: doneMsg }]);
+      setMessages((m) => [...m, { role: "system", text: "تم تطبيق التعديل ✓" }]);
     } catch (e) {
-      let msg: string;
-      const raw = e instanceof Error ? e.message : String(e);
-      const low = raw.toLowerCase();
-      if (e instanceof DOMException && e.name === "AbortError") {
-        msg = "استغرق الطلب وقتًا طويلًا أو أُلغي. جرّب مجددًا.";
-      } else if (e instanceof TypeError) {
-        msg = "خطأ في الاتصال — تأكد أن الخادم يعمل، ثم أعد المحاولة.";
-      } else if (low.includes("x-api-key") || low.includes("authentication") || low.includes("401")) {
-        msg = "مفتاح Anthropic غير صحيح أو منتهي الصلاحية. حدّث ANTHROPIC_API_KEY بمفتاح صالح.";
-      } else if (low.includes("credit") || low.includes("billing") || low.includes("insufficient") || low.includes("quota")) {
-        msg = "لا يوجد رصيد كافٍ في حساب Anthropic. أضف رصيدًا من console.anthropic.com ثم أعد المحاولة.";
-      } else {
-        msg = raw;
-      }
-      setError(msg);
+      setError(mapError(e));
       setTab(htmlRef.current ? "preview" : "code");
     } finally {
       clearTimeout(timeout);
@@ -223,7 +340,9 @@ export default function Builder() {
 
   function retry() {
     const r = lastReqRef.current;
-    if (r) streamRequest(r.url, r.body, r.doneMsg);
+    if (!r) return;
+    if (r.kind === "site") generateSite(r.prompt);
+    else runEdit(r.instruction);
   }
 
   function sendEdit() {
@@ -238,7 +357,7 @@ export default function Builder() {
       ...m,
       { role: "user", text: selected ? `🎯 (على العنصر المحدد) ${text}` : text },
     ]);
-    streamRequest("/api/edit", { html, instruction, mode }, "تم تطبيق التعديل ✓");
+    runEdit(instruction);
   }
 
   function updateCode(value: string) {
@@ -352,7 +471,6 @@ export default function Builder() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Manual-edit toolbar for the selected element */}
           {editMode && (
             <div className="px-3 pt-3 border-t border-[var(--oji-border)] space-y-2">
               <div className="text-xs text-[var(--oji-muted)]">
