@@ -79,3 +79,18 @@ export async function loadProject(id: string): Promise<ProjectData | null> {
     return null;
   }
 }
+
+// ---- custom-domain -> published-site mapping ----
+function domainKey(domain: string): string {
+  return `domains/${domain.toLowerCase().replace(/[^a-z0-9.-]/g, "")}.txt`;
+}
+export async function saveDomain(domain: string, siteId: string): Promise<void> {
+  const key = domainKey(domain);
+  if (hasBlob) await blobPut(key, safeId(siteId), "text/plain");
+  else await fileWrite(key, safeId(siteId));
+}
+export async function readDomainSite(domain: string): Promise<string | null> {
+  const key = domainKey(domain);
+  const raw = hasBlob ? await blobRead(key) : await fileRead(key);
+  return raw ? raw.trim() : null;
+}

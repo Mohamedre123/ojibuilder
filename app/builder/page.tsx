@@ -160,7 +160,9 @@ export default function Builder() {
   const [saving, setSaving] = useState(false);
   const [histVer, setHistVer] = useState(0);
   const [mobileView, setMobileView] = useState<"chat" | "work">("work");
+  const [linking, setLinking] = useState(false);
   const projectIdRef = useRef<string | null>(null);
+  const publishedIdRef = useRef<string | null>(null);
 
   const startedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -563,13 +565,52 @@ export default function Builder() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "تعذّر النشر");
+      publishedIdRef.current = data.id;
       const fullUrl = window.location.origin + data.path;
-      setMessages((m) => [...m, { role: "system", text: `🚀 تم النشر! الرابط: ${fullUrl}` }]);
+      setMessages((m) => [...m, { role: "system", text: `🚀 تم النشر! الرابط: ${fullUrl}\nتقدر دلوقتي تربط نطاقك الخاص من زر «🌐 دومين».` }]);
       window.open(fullUrl, "_blank");
     } catch (e) {
       setError(mapError(e));
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function connectDomain() {
+    if (linking) return;
+    if (!publishedIdRef.current) {
+      alert("انشر الموقع أولًا بزر «🚀 نشر»، ثم اربط النطاق.");
+      return;
+    }
+    const domain = window.prompt("اكتب نطاقك (مثال: mystore.com أو www.mystore.com):");
+    if (!domain) return;
+    setLinking(true);
+    try {
+      const res = await fetch("/api/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain, siteId: publishedIdRef.current }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "تعذّر ربط النطاق");
+      const recs = (data.records || []).map((r: { type: string; name: string; value: string }) => `• ${r.type}   ${r.name}   →   ${r.value}`).join("\n");
+      const ver = (data.verification || []).map((v: { type: string; domain: string; value: string }) => `• ${v.type}   ${v.domain}   →   ${v.value}`).join("\n");
+      setMessages((m) => [
+        ...m,
+        {
+          role: "system",
+          text:
+            `🌐 لربط «${data.domain}»: أضِف سجلّات DNS التالية في لوحة استضافتك:\n${recs}` +
+            (ver ? `\n\nسجلّات تأكيد الملكية:\n${ver}` : "") +
+            `\n\nبعد إضافتها قد يستغرق التفعيل حتى ساعة، وسيعمل النطاق تلقائيًا مع شهادة SSL.` +
+            (data.verified ? "\n\n✅ تم التحقق والتفعيل!" : "\n\n(الحالة: بانتظار إضافة السجلّات)"),
+        },
+      ]);
+      setMobileView("chat");
+    } catch (e) {
+      setError(mapError(e));
+    } finally {
+      setLinking(false);
     }
   }
 
@@ -614,6 +655,9 @@ export default function Builder() {
           <button onClick={publish} disabled={!html || loading || publishing} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {publishing ? "...نشر" : "🚀 نشر"}
           </button>
+          <button onClick={connectDomain} disabled={!html || loading || linking} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
+            {linking ? "...ربط" : "🌐 دومين"}
+          </button>
           <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">معاينة ↗</button>
           <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">تنزيل</button>
         </div>
@@ -629,7 +673,7 @@ export default function Builder() {
         <aside className={`w-full lg:w-[340px] shrink-0 border-l border-[var(--oji-border)] bg-[var(--oji-surface)] flex-col ${mobileView === "chat" ? "flex" : "hidden"} lg:flex`}>
           <div className="flex-1 overflow-y-auto scroll-touch p-4 space-y-3">
             {messages.map((m, i) => (
-              <div key={i} className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words ${m.role === "user" ? "bg-[var(--oji-surface-2)] border border-[var(--oji-border)]" : "bg-[var(--oji-primary)]/10 border border-[var(--oji-primary)]/30 text-[var(--oji-text)]"}`}>
+              <div key={i} className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words whitespace-pre-line ${m.role === "user" ? "bg-[var(--oji-surface-2)] border border-[var(--oji-border)]" : "bg-[var(--oji-primary)]/10 border border-[var(--oji-primary)]/30 text-[var(--oji-text)]"}`}>
                 {m.text}
               </div>
             ))}
