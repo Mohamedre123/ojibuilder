@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { client, MODELS, extractHtml } from "@/lib/anthropic";
 import { GENERATION_SYSTEM_PROMPT } from "@/lib/prompts";
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
