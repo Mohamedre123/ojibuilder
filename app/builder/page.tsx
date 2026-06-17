@@ -223,7 +223,8 @@ export default function Builder() {
                   title="preview"
                   srcDoc={html}
                   className="w-full h-full bg-white"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  sandbox="allow-scripts allow-forms"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="h-full flex items-center justify-center text-[var(--oji-muted)]">
