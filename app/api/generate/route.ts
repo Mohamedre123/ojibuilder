@@ -3,7 +3,8 @@ import { client, MODELS } from "@/lib/anthropic";
 import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
-export const maxDuration = 300;
+// 60s fits Vercel Hobby. On Pro you can raise this to 300 for richer output.
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
