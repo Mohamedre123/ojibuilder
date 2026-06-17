@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  /* oji builder brand palette — distinct from stunning (teal/emerald + deep slate) */
+  --oji-bg: #0b1120;
+  --oji-surface: #111a2e;
+  --oji-surface-2: #16213c;
+  --oji-border: #233151;
+  --oji-primary: #14b8a6;      /* teal */
+  --oji-primary-strong: #0d9488;
+  --oji-accent: #a78bfa;        /* violet accent */
+  --oji-text: #e6edf7;
+  --oji-muted: #8ea2c0;
+}
+
+html, body {
+  background: var(--oji-bg);
+  color: var(--oji-text);
+  font-family: "Cairo", "Tajawal", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+.oji-gradient-text {
+  background: linear-gradient(90deg, var(--oji-primary), var(--oji-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.oji-glow {
+  box-shadow: 0 0 0 1px var(--oji-border), 0 18px 50px -20px rgba(20, 184, 166, 0.4);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--oji-bg); }
+::-webkit-scrollbar-thumb { background: var(--oji-border); border-radius: 8px; }
