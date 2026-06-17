@@ -11,11 +11,13 @@ interface Selected {
   tag: string;
   html: string;
 }
+interface ImageSeed {
+  data: string;
+  mediaType: string;
+}
 type Mode = "auto" | "opus";
 type Tab = "preview" | "code";
-type LastReq =
-  | { kind: "site"; prompt: string }
-  | { kind: "edit"; instruction: string };
+type LastReq = { kind: "site" } | { kind: "edit"; instruction: string };
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -30,15 +32,12 @@ function cleanHtml(raw: string): string {
   return out;
 }
 
-// Clean a page's inner-HTML fragment returned by the AI.
 function cleanInner(raw: string): string {
   let o = raw
     .replace(/<!--OJI_ERROR:[\s\S]*?-->/g, "")
     .replace(/```html\s*/gi, "")
     .replace(/```/g, "")
     .trim();
-  // Only unwrap if the model wrongly wrapped everything in a single
-  // <section data-page="..."> — never touch legitimate inner <section>s.
   const m = o.match(/^<section[^>]*\bdata-page\b[^>]*>([\s\S]*)<\/section>\s*$/i);
   if (m) o = m[1].trim();
   return o.trim();
@@ -68,6 +67,14 @@ function injectPage(fullHtml: string, id: string, inner: string): string {
   const s = doc.querySelector(`[data-page="${CSS.escape(id)}"]`);
   if (s) s.innerHTML = inner;
   return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+}
+
+// Instantly recolor the theme by rewriting the CSS variable in <style id="theme">.
+function applyPrimaryColor(fullHtml: string, color: string): string {
+  if (/--c-primary\s*:/.test(fullHtml)) {
+    return fullHtml.replace(/(--c-primary\s*:\s*)[^;]+/g, `$1${color}`);
+  }
+  return fullHtml;
 }
 
 const EDITOR_RUNTIME = `
@@ -132,6 +139,8 @@ function mapError(e: unknown): string {
   return raw;
 }
 
+const SWATCHES = ["#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#ef4444", "#10b981", "#0ea5e9"];
+
 // ---- component -------------------------------------------------------------
 
 export default function Builder() {
@@ -147,14 +156,57 @@ export default function Builder() {
   const [editMode, setEditMode] = useState(false);
   const [editDoc, setEditDoc] = useState("");
   const [selected, setSelected] = useState<Selected | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [histVer, setHistVer] = useState(0);
 
   const startedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lastReqRef = useRef<LastReq | null>(null);
+  const seedRef = useRef<{ prompt: string; image: ImageSeed | null; lang: string }>({ prompt: "", image: null, lang: "ar" });
   const htmlRef = useRef("");
+  const histRef = useRef<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
   htmlRef.current = html;
+
+  // ---- history ----
+  function commit(h: string) {
+    const st = histRef.current;
+    if (st.stack[st.idx] === h) return;
+    st.stack = st.stack.slice(0, st.idx + 1);
+    st.stack.push(h);
+    if (st.stack.length > 60) st.stack.shift();
+    st.idx = st.stack.length - 1;
+    setHistVer((v) => v + 1);
+  }
+  function commitDebounced(h: string) {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    commitTimer.current = setTimeout(() => commit(h), 700);
+  }
+  function applyHistory(h: string) {
+    setHtml(h);
+    setPreviewHtml(h);
+    sessionStorage.setItem("oji:html", h);
+    if (editMode) setEditDoc(injectEditor(h));
+  }
+  function undo() {
+    const st = histRef.current;
+    if (st.idx <= 0) return;
+    st.idx -= 1;
+    setHistVer((v) => v + 1);
+    applyHistory(st.stack[st.idx]);
+  }
+  function redo() {
+    const st = histRef.current;
+    if (st.idx >= st.stack.length - 1) return;
+    st.idx += 1;
+    setHistVer((v) => v + 1);
+    applyHistory(st.stack[st.idx]);
+  }
+  const canUndo = histRef.current.idx > 0;
+  const canRedo = histRef.current.idx < histRef.current.stack.length - 1;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -168,13 +220,15 @@ export default function Builder() {
         const c = cleanHtml(d.html);
         setHtml(c);
         sessionStorage.setItem("oji:html", c);
+        commitDebounced(c);
       } else if (d.type === "select") {
         setSelected({ tag: d.tag, html: d.html });
       }
     }
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMode]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -184,18 +238,26 @@ export default function Builder() {
     if (savedHtml) {
       setHtml(savedHtml);
       setPreviewHtml(savedHtml);
+      commit(savedHtml);
       return;
     }
     if (!prompt) {
       router.push("/");
       return;
     }
-    setMessages([{ role: "user", text: prompt }]);
-    generateSite(prompt);
+    let image: ImageSeed | null = null;
+    try {
+      image = JSON.parse(sessionStorage.getItem("oji:image") || "null");
+    } catch {
+      image = null;
+    }
+    const lang = sessionStorage.getItem("oji:lang") || "ar";
+    seedRef.current = { prompt, image, lang };
+    setMessages([{ role: "user", text: image ? `🖼️ بناء من صورة — ${prompt}` : prompt }]);
+    generateSite();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Low-level streaming reader. Calls onChunk(buffer) live; returns final text.
   async function streamText(
     body: Record<string, unknown>,
     signal: AbortSignal,
@@ -240,22 +302,27 @@ export default function Builder() {
     return ac;
   }
 
-  async function generateSite(prompt: string) {
-    lastReqRef.current = { kind: "site", prompt };
+  async function generateSite() {
+    lastReqRef.current = { kind: "site" };
+    const { prompt, image, lang } = seedRef.current;
     const ac = beginRequest();
     const timeout = setTimeout(() => ac.abort(), 290_000);
     try {
       setMessages((m) => [...m, { role: "system", text: "⏳ أبني الهيكل والصفحة الرئيسية..." }]);
       let lastP = 0;
-      const shellRaw = await streamText({ prompt, mode, step: "shell" }, ac.signal, (buf) => {
-        const c = cleanHtml(buf);
-        setHtml(c);
-        const now = Date.now();
-        if (now - lastP > 400) {
-          setPreviewHtml(c);
-          lastP = now;
+      const shellRaw = await streamText(
+        { prompt, mode, step: "shell", image, lang },
+        ac.signal,
+        (buf) => {
+          const c = cleanHtml(buf);
+          setHtml(c);
+          const now = Date.now();
+          if (now - lastP > 400) {
+            setPreviewHtml(c);
+            lastP = now;
+          }
         }
-      });
+      );
       let current = cleanHtml(shellRaw);
       setHtml(current);
       setPreviewHtml(current);
@@ -267,7 +334,7 @@ export default function Builder() {
       for (const pg of toFill) {
         setMessages((m) => [...m, { role: "system", text: `⏳ أبني صفحة: ${pg.title}...` }]);
         const innerRaw = await streamText(
-          { prompt, mode, step: "page", pageId: pg.id, pageTitle: pg.title, context: current },
+          { prompt, mode, step: "page", pageId: pg.id, pageTitle: pg.title, context: current, lang },
           ac.signal
         );
         current = injectPage(current, pg.id, cleanInner(innerRaw));
@@ -275,9 +342,10 @@ export default function Builder() {
         setPreviewHtml(current);
         sessionStorage.setItem("oji:html", current);
       }
+      commit(current);
       setMessages((m) => [
         ...m,
-        { role: "system", text: "تم بناء موقعك بالكامل ✓ اطلب أي تعديل أو فعّل التعديل اليدوي." },
+        { role: "system", text: "تم بناء موقعك بالكامل ✓ اطلب أي تعديل، أو فعّل التعديل اليدوي، أو انشره." },
       ]);
     } catch (e) {
       setError(mapError(e));
@@ -293,7 +361,6 @@ export default function Builder() {
     const ac = beginRequest();
     const timeout = setTimeout(() => ac.abort(), 290_000);
     try {
-      // edit goes through the dedicated endpoint
       const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -327,6 +394,7 @@ export default function Builder() {
       setHtml(finalHtml);
       setPreviewHtml(finalHtml);
       sessionStorage.setItem("oji:html", finalHtml);
+      commit(finalHtml);
       setTab("preview");
       setMessages((m) => [...m, { role: "system", text: "تم تطبيق التعديل ✓" }]);
     } catch (e) {
@@ -341,7 +409,7 @@ export default function Builder() {
   function retry() {
     const r = lastReqRef.current;
     if (!r) return;
-    if (r.kind === "site") generateSite(r.prompt);
+    if (r.kind === "site") generateSite();
     else runEdit(r.instruction);
   }
 
@@ -353,10 +421,7 @@ export default function Builder() {
     if (selected) {
       instruction = `ركّز التعديل على هذا العنصر تحديدًا داخل الموقع، وأعد المستند كاملًا:\n${selected.html}\n\nالمطلوب: ${text}`;
     }
-    setMessages((m) => [
-      ...m,
-      { role: "user", text: selected ? `🎯 (على العنصر المحدد) ${text}` : text },
-    ]);
+    setMessages((m) => [...m, { role: "user", text: selected ? `🎯 (على العنصر المحدد) ${text}` : text }]);
     runEdit(instruction);
   }
 
@@ -364,6 +429,7 @@ export default function Builder() {
     setHtml(value);
     setPreviewHtml(value);
     sessionStorage.setItem("oji:html", value);
+    commitDebounced(value);
   }
 
   function toggleEdit() {
@@ -386,13 +452,60 @@ export default function Builder() {
     iframePost({ type: "delete" });
     setSelected(null);
   }
-  function replaceImage() {
+  function replaceImageUrl() {
     const url = window.prompt("رابط الصورة الجديدة:");
     if (url) iframePost({ type: "replaceImg", url });
   }
-  function insertImage() {
+  function insertImageUrl() {
     const url = window.prompt("رابط الصورة المراد إضافتها:");
     if (url) iframePost({ type: "insertImg", url });
+  }
+  function onEditFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("الصورة كبيرة جدًا (الحد 5 ميجابايت)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result);
+      if (selected && selected.tag === "IMG") iframePost({ type: "replaceImg", url });
+      else iframePost({ type: "insertImg", url });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function setThemeColor(color: string) {
+    if (!html) return;
+    const next = applyPrimaryColor(html, color);
+    setHtml(next);
+    setPreviewHtml(next);
+    sessionStorage.setItem("oji:html", next);
+    if (editMode) setEditDoc(injectEditor(next));
+    commit(next);
+  }
+
+  async function publish() {
+    if (!html || publishing) return;
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: cleanHtml(html) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "تعذّر النشر");
+      const fullUrl = window.location.origin + data.path;
+      setMessages((m) => [...m, { role: "system", text: `🚀 تم النشر! الرابط: ${fullUrl}` }]);
+      window.open(fullUrl, "_blank");
+    } catch (e) {
+      setError(mapError(e));
+    } finally {
+      setPublishing(false);
+    }
   }
 
   function download() {
@@ -414,35 +527,26 @@ export default function Builder() {
     <div className="h-screen flex flex-col">
       <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--oji-border)] bg-[var(--oji-surface)]">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">
-            ← الرئيسية
-          </button>
+          <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">← الرئيسية</button>
           <span className="font-extrabold">oji <span className="oji-gradient-text">builder</span></span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleEdit}
-            disabled={!html || loading}
-            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition disabled:opacity-40 ${
-              editMode ? "bg-[var(--oji-accent)] text-[#06121f]" : "border border-[var(--oji-border)] hover:border-[var(--oji-accent)]"
-            }`}
-          >
-            {editMode ? "إنهاء التعديل اليدوي ✓" : "✏️ تعديل يدوي"}
+          <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden">
+            <button onClick={undo} disabled={!canUndo || loading} title="تراجع" className="px-2.5 py-1.5 text-sm disabled:opacity-30 hover:bg-[var(--oji-surface-2)]">↶</button>
+            <button onClick={redo} disabled={!canRedo || loading} title="إعادة" className="px-2.5 py-1.5 text-sm disabled:opacity-30 hover:bg-[var(--oji-surface-2)] border-r border-[var(--oji-border)]">↷</button>
+          </div>
+          <button onClick={toggleEdit} disabled={!html || loading} className={`px-3 py-1.5 rounded-lg text-sm font-bold transition disabled:opacity-40 ${editMode ? "bg-[var(--oji-accent)] text-[#06121f]" : "border border-[var(--oji-border)] hover:border-[var(--oji-accent)]"}`}>
+            {editMode ? "إنهاء التعديل ✓" : "✏️ تعديل يدوي"}
           </button>
           <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs">
-            <button onClick={() => setMode("auto")} className={`px-3 py-1.5 ${mode === "auto" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>
-              تلقائي
-            </button>
-            <button onClick={() => setMode("opus")} className={`px-3 py-1.5 ${mode === "opus" ? "bg-[var(--oji-accent)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>
-              متقدّم
-            </button>
+            <button onClick={() => setMode("auto")} className={`px-3 py-1.5 ${mode === "auto" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>تلقائي</button>
+            <button onClick={() => setMode("opus")} className={`px-3 py-1.5 ${mode === "opus" ? "bg-[var(--oji-accent)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>متقدّم</button>
           </div>
-          <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
-            معاينة ↗
+          <button onClick={publish} disabled={!html || loading || publishing} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
+            {publishing ? "...نشر" : "🚀 نشر"}
           </button>
-          <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">
-            تنزيل الموقع
-          </button>
+          <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">معاينة ↗</button>
+          <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">تنزيل</button>
         </div>
       </header>
 
@@ -450,7 +554,7 @@ export default function Builder() {
         <aside className="w-[340px] shrink-0 border-l border-[var(--oji-border)] bg-[var(--oji-surface)] flex flex-col">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((m, i) => (
-              <div key={i} className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "bg-[var(--oji-surface-2)] border border-[var(--oji-border)]" : "bg-[var(--oji-primary)]/10 border border-[var(--oji-primary)]/30 text-[var(--oji-text)]"}`}>
+              <div key={i} className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words ${m.role === "user" ? "bg-[var(--oji-surface-2)] border border-[var(--oji-border)]" : "bg-[var(--oji-primary)]/10 border border-[var(--oji-primary)]/30 text-[var(--oji-text)]"}`}>
                 {m.text}
               </div>
             ))}
@@ -463,26 +567,39 @@ export default function Builder() {
             {error && (
               <div className="rounded-2xl px-4 py-3 text-sm bg-red-500/10 border border-red-500/40 text-red-300 space-y-2">
                 <div>{error}</div>
-                <button onClick={retry} disabled={loading} className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-100 text-xs font-bold transition">
-                  إعادة المحاولة ↻
-                </button>
+                <button onClick={retry} disabled={loading} className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-100 text-xs font-bold transition">إعادة المحاولة ↻</button>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
+          {/* Theme color quick controls */}
+          {html && !loading && (
+            <div className="px-3 pt-3 border-t border-[var(--oji-border)]">
+              <div className="text-xs text-[var(--oji-muted)] mb-2">اللون الأساسي للموقع</div>
+              <div className="flex flex-wrap gap-2 items-center">
+                {SWATCHES.map((c) => (
+                  <button key={c} onClick={() => setThemeColor(c)} style={{ background: c }} className="w-6 h-6 rounded-full border border-white/20 hover:scale-110 transition" title={c} />
+                ))}
+                <input type="color" onChange={(e) => setThemeColor(e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border border-[var(--oji-border)]" title="لون مخصص" />
+              </div>
+            </div>
+          )}
+
           {editMode && (
             <div className="px-3 pt-3 border-t border-[var(--oji-border)] space-y-2">
-              <div className="text-xs text-[var(--oji-muted)]">
-                {selected ? `العنصر المحدد: <${selected.tag.toLowerCase()}>` : "انقر على أي جزء في المعاينة لتحديده وتعديله"}
-              </div>
+              <div className="text-xs text-[var(--oji-muted)]">{selected ? `العنصر المحدد: <${selected.tag.toLowerCase()}>` : "انقر على أي جزء في المعاينة لتحديده"}</div>
+              <input ref={editFileRef} type="file" accept="image/*" onChange={onEditFile} className="hidden" />
               {selected && (
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={deleteSelected} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-red-500 hover:text-red-300 transition">🗑 حذف</button>
-                  <button onClick={replaceImage} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🖼 استبدال صورة</button>
+                  <button onClick={replaceImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🔗 صورة برابط</button>
                 </div>
               )}
-              <button onClick={insertImage} className="w-full px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">➕ إضافة صورة / بانر</button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => editFileRef.current?.click()} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">⬆️ رفع صورة</button>
+                <button onClick={insertImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">➕ صورة برابط</button>
+              </div>
             </div>
           )}
 
@@ -494,18 +611,7 @@ export default function Builder() {
               </div>
             )}
             <div className="rounded-xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] p-2">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendEdit();
-                  }
-                }}
-                placeholder={selected ? "اطلب تعديل العنصر المحدد بالذكاء..." : "اطلب تعديلًا: «غيّر الألوان للأزرق»، «أضف صفحة أسعار»، «أضف لوجو»..."}
-                className="w-full h-16 bg-transparent resize-none outline-none px-2 py-1 text-sm placeholder:text-[var(--oji-muted)]"
-              />
+              <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendEdit(); } }} placeholder={selected ? "اطلب تعديل العنصر المحدد بالذكاء..." : "اطلب تعديلًا: «غيّر الألوان»، «أضف صفحة أسعار»، «أضف لوجو»..."} className="w-full h-16 bg-transparent resize-none outline-none px-2 py-1 text-sm placeholder:text-[var(--oji-muted)]" />
               <button onClick={sendEdit} disabled={loading || !input.trim() || !html} className="w-full mt-1 py-2 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">
                 {selected ? "عدّل المحدد بالذكاء" : "إرسال التعديل"}
               </button>
@@ -522,7 +628,7 @@ export default function Builder() {
               </button>
             ))}
             {editMode && tab === "preview" && (
-              <span className="ms-auto text-xs text-[var(--oji-accent)]">وضع التعديل اليدوي مُفعّل — انقر على أي عنصر</span>
+              <span className="ms-auto text-xs text-[var(--oji-accent)]">وضع التعديل اليدوي — انقر على أي عنصر</span>
             )}
           </div>
           <div className="flex-1 min-h-0">
@@ -532,9 +638,7 @@ export default function Builder() {
               ) : previewHtml ? (
                 <iframe title="preview" srcDoc={previewHtml} className="w-full h-full bg-white" sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" />
               ) : (
-                <div className="h-full flex items-center justify-center text-[var(--oji-muted)]">
-                  {loading ? "جارٍ بناء موقعك..." : "لا يوجد محتوى بعد"}
-                </div>
+                <div className="h-full flex items-center justify-center text-[var(--oji-muted)]">{loading ? "جارٍ بناء موقعك..." : "لا يوجد محتوى بعد"}</div>
               )
             ) : (
               <textarea value={html} onChange={(e) => updateCode(e.target.value)} dir="ltr" spellCheck={false} className="w-full h-full bg-[#0a0f1c] text-[#c8d3e6] font-mono text-xs p-4 outline-none resize-none" />

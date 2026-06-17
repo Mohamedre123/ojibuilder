@@ -11,3 +11,5 @@ next-env.d.ts
 shell*.html
 page*.html
 gen_*.html
+
+.published

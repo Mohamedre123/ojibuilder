@@ -22,22 +22,41 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { prompt, mode, step, pageId, pageTitle, context } = await req.json();
+  const { prompt, mode, step, pageId, pageTitle, context, image, lang } = await req.json();
   if (!prompt || typeof prompt !== "string" || prompt.length > LIMITS.MAX_PROMPT_CHARS) {
     return NextResponse.json({ error: "الوصف مطلوب أو طويل جدًا" }, { status: 400 });
   }
 
   const model = mode === "opus" ? MODELS.opus : MODELS.auto;
+  const langNote =
+    lang === "en"
+      ? "\n\nاجعل كل محتوى الموقع باللغة الإنجليزية و<html lang=\"en\" dir=\"ltr\">."
+      : "";
 
   let system: string;
   let userContent: string;
   if (step === "page") {
     system = PAGE_SYSTEM_PROMPT;
-    userContent = `وصف الموقع الأصلي: ${prompt}\n\nالهيكل الحالي للموقع (للاتساق في الألوان والطابع):\n${String(context || "").slice(0, LIMITS.MAX_HTML_CHARS)}\n\n---\nابنِ المحتوى الداخلي للصفحة ذات data-page="${pageId}" وعنوانها "${pageTitle}".`;
+    userContent = `وصف الموقع الأصلي: ${prompt}\n\nالهيكل الحالي للموقع (للاتساق في الألوان والطابع):\n${String(context || "").slice(0, LIMITS.MAX_HTML_CHARS)}\n\n---\nابنِ المحتوى الداخلي للصفحة ذات data-page="${pageId}" وعنوانها "${pageTitle}".${langNote}`;
   } else {
     system = SHELL_SYSTEM_PROMPT;
-    userContent = `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}`;
+    userContent = image
+      ? `ابنِ هيكل موقع وصفحة رئيسية مستوحاة من هذا التصميم/الصورة المرفقة، مع تحسينه وجعله احترافيًا. ملاحظات إضافية: ${prompt}${langNote}`
+      : `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}${langNote}`;
   }
+
+  // Optional image input (vision) for the shell step.
+  type Block =
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+  const userBlocks: Block[] = [];
+  if (image && image.data && image.mediaType && step !== "page") {
+    userBlocks.push({
+      type: "image",
+      source: { type: "base64", media_type: image.mediaType, data: image.data },
+    });
+  }
+  userBlocks.push({ type: "text", text: userContent });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -47,7 +66,8 @@ export async function POST(req: NextRequest) {
           model,
           max_tokens: 8000,
           system,
-          messages: [{ role: "user", content: userContent }],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          messages: [{ role: "user", content: userBlocks as any }],
         });
         for await (const event of ai) {
           if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
