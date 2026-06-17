@@ -157,8 +157,10 @@ export default function Builder() {
   const [editDoc, setEditDoc] = useState("");
   const [selected, setSelected] = useState<Selected | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [histVer, setHistVer] = useState(0);
   const [mobileView, setMobileView] = useState<"chat" | "work">("work");
+  const projectIdRef = useRef<string | null>(null);
 
   const startedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -234,6 +236,31 @@ export default function Builder() {
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    // Open a saved project via /builder?project=<id>
+    const projectId = new URLSearchParams(window.location.search).get("project");
+    if (projectId) {
+      (async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/projects/${projectId}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "تعذّر فتح المشروع");
+          projectIdRef.current = projectId;
+          setHtml(data.html);
+          setPreviewHtml(data.html);
+          commit(data.html);
+          sessionStorage.setItem("oji:html", data.html);
+          setMessages([{ role: "system", text: `تم فتح المشروع: ${data.title}` }]);
+        } catch (e) {
+          setError(mapError(e));
+        } finally {
+          setLoading(false);
+        }
+      })();
+      return;
+    }
+
     const savedHtml = sessionStorage.getItem("oji:html");
     const prompt = sessionStorage.getItem("oji:prompt");
     if (savedHtml) {
@@ -489,6 +516,42 @@ export default function Builder() {
     commit(next);
   }
 
+  function rememberProject(id: string, title: string) {
+    try {
+      const raw = localStorage.getItem("oji:projects");
+      const list: { id: string; title: string; ts: number }[] = raw ? JSON.parse(raw) : [];
+      const next = [{ id, title, ts: Date.now() }, ...list.filter((p) => p.id !== id)].slice(0, 50);
+      localStorage.setItem("oji:projects", JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function saveProject() {
+    if (!html || saving || loading) return;
+    const current = projectIdRef.current;
+    const def = (seedRef.current.prompt || "مشروعي").slice(0, 40);
+    const title = window.prompt("اسم المشروع:", def);
+    if (title === null) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: current || undefined, html: cleanHtml(html), title }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "تعذّر الحفظ");
+      projectIdRef.current = data.id;
+      rememberProject(data.id, title || "مشروع بدون اسم");
+      setMessages((m) => [...m, { role: "system", text: "💾 تم حفظ المشروع. تجده في «مشاريعي»." }]);
+    } catch (e) {
+      setError(mapError(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function publish() {
     if (!html || publishing) return;
     setPublishing(true);
@@ -544,6 +607,10 @@ export default function Builder() {
             <button onClick={() => setMode("auto")} className={`px-3 py-1.5 ${mode === "auto" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>تلقائي</button>
             <button onClick={() => setMode("opus")} className={`px-3 py-1.5 ${mode === "opus" ? "bg-[var(--oji-accent)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>متقدّم</button>
           </div>
+          <button onClick={() => router.push("/projects")} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">مشاريعي</button>
+          <button onClick={saveProject} disabled={!html || loading || saving} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
+            {saving ? "...حفظ" : "💾 حفظ"}
+          </button>
           <button onClick={publish} disabled={!html || loading || publishing} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {publishing ? "...نشر" : "🚀 نشر"}
           </button>
