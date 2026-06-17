@@ -200,12 +200,18 @@ export default function Builder() {
       setMessages((m) => [...m, { role: "system", text: doneMsg }]);
     } catch (e) {
       let msg: string;
+      const raw = e instanceof Error ? e.message : String(e);
+      const low = raw.toLowerCase();
       if (e instanceof DOMException && e.name === "AbortError") {
         msg = "استغرق الطلب وقتًا طويلًا أو أُلغي. جرّب مجددًا.";
       } else if (e instanceof TypeError) {
-        msg = "خطأ في الاتصال — تأكد أن الخادم يعمل ومن وجود مفتاح/رصيد Anthropic، ثم أعد المحاولة.";
+        msg = "خطأ في الاتصال — تأكد أن الخادم يعمل، ثم أعد المحاولة.";
+      } else if (low.includes("x-api-key") || low.includes("authentication") || low.includes("401")) {
+        msg = "مفتاح Anthropic غير صحيح أو منتهي الصلاحية. حدّث ANTHROPIC_API_KEY بمفتاح صالح.";
+      } else if (low.includes("credit") || low.includes("billing") || low.includes("insufficient") || low.includes("quota")) {
+        msg = "لا يوجد رصيد كافٍ في حساب Anthropic. أضف رصيدًا من console.anthropic.com ثم أعد المحاولة.";
       } else {
-        msg = e instanceof Error ? e.message : "خطأ غير متوقع";
+        msg = raw;
       }
       setError(msg);
       setTab(htmlRef.current ? "preview" : "code");
