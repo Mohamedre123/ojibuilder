@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
+import PromoBanner from "@/components/PromoBanner";
 
 interface ChatMsg {
   role: "user" | "system";
@@ -655,6 +656,7 @@ export default function Builder() {
 
   return (
     <div className="app-h flex flex-col">
+      <PromoBanner />
       <header className="flex items-center gap-3 px-3 sm:px-4 py-3 border-b border-[var(--oji-border)] bg-[var(--oji-surface)]">
         <div className="flex items-center gap-3 shrink-0">
           <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">←</button>

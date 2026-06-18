@@ -92,8 +92,15 @@ img, iframe, video, canvas { max-width: 100%; }
 .oji-float { animation: oji-float 6s ease-in-out infinite; }
 .oji-pulse { animation: oji-pulse-ring 2s infinite; }
 
+/* Promo banner — animated brand gradient */
+.oji-promo {
+  background: linear-gradient(90deg, #7c3aed, #d946ef, #22d3ee, #7c3aed);
+  background-size: 300% 100%;
+  animation: oji-shimmer 9s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  body::before, .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse { animation: none !important; }
+  body::before, .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo { animation: none !important; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }

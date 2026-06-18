@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TEMPLATES } from "@/lib/prompts";
 import { MODELS, DEFAULT_MODEL } from "@/lib/models";
+import PromoBanner from "@/components/PromoBanner";
 
 type Entry = "text" | "image" | "url";
 
@@ -86,6 +87,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
+      <PromoBanner />
       <header className="flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--oji-primary)] to-[var(--oji-accent)] flex items-center justify-center font-extrabold text-[#06121f]">O</div>

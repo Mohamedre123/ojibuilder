@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import PromoBanner from "@/components/PromoBanner";
 
 interface Item {
   id: string;
@@ -29,7 +30,9 @@ export default function Projects() {
   }
 
   return (
-    <main className="min-h-screen max-w-3xl mx-auto px-6 py-10">
+    <>
+      <PromoBanner />
+      <main className="min-h-screen max-w-3xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-extrabold">مشاريعي</h1>
         <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">+ مشروع جديد</button>
@@ -58,6 +61,7 @@ export default function Projects() {
           ))}
         </div>
       )}
-    </main>
+      </main>
+    </>
   );
 }
