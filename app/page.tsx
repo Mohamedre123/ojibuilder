@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TEMPLATES } from "@/lib/prompts";
+import { MODELS, DEFAULT_MODEL } from "@/lib/models";
 
 type Entry = "text" | "image" | "url";
 
@@ -12,9 +13,15 @@ export default function Home() {
   const [entry, setEntry] = useState<Entry>("text");
   const [url, setUrl] = useState("");
   const [lang, setLang] = useState<"ar" | "en">("ar");
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [cat, setCat] = useState("الكل");
   const [busy, setBusy] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function pickModel(id: string) {
+    setModel(id);
+    sessionStorage.setItem("oji:model", id);
+  }
 
   const categories = useMemo(
     () => ["الكل", ...Array.from(new Set(TEMPLATES.map((t) => t.category)))],
@@ -91,14 +98,14 @@ export default function Home() {
       </header>
 
       <section className="max-w-3xl mx-auto px-6 pt-14 pb-12 text-center">
-        <div className="inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full border border-[var(--oji-border)] text-[var(--oji-muted)] mb-6">
+        <div className="oji-up inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full oji-glass text-[var(--oji-muted)] mb-6">
           <span className="w-2 h-2 rounded-full bg-[var(--oji-primary)] animate-pulse" />
-          مدعوم بأحدث نماذج الذكاء الاصطناعي
+          مدعوم بأحدث نماذج الذكاء الاصطناعي من Claude
         </div>
-        <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight mb-5">
+        <h1 className="oji-up text-4xl sm:text-6xl font-extrabold leading-tight mb-5">
           اكتب فكرتك، واحصل على <span className="oji-gradient-text">موقع كامل</span>
         </h1>
-        <p className="text-lg text-[var(--oji-muted)] mb-7 max-w-xl mx-auto">
+        <p className="oji-up-2 text-base sm:text-lg text-[var(--oji-muted)] mb-7 max-w-xl mx-auto">
           من نص، أو صورة تصميم، أو رابط موقع قائم — ودع oji builder يبنيه ويتيح لك تعديل كل جزء.
         </p>
 
@@ -115,7 +122,21 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="oji-glow rounded-2xl bg-[var(--oji-surface)] p-3 text-right">
+        {/* Model picker with cost hint */}
+        <div className="oji-up-2 flex flex-wrap items-center justify-center gap-2 mb-4">
+          {MODELS.map((mo) => (
+            <button
+              key={mo.id}
+              onClick={() => pickModel(mo.id)}
+              title={`$${mo.inPrice}/$${mo.outPrice} لكل مليون توكن`}
+              className={`px-3 py-1.5 rounded-xl text-xs transition border ${model === mo.id ? "border-[var(--oji-primary)] bg-[var(--oji-primary)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)]"}`}
+            >
+              {mo.badge} {mo.label} · {mo.speed}
+            </button>
+          ))}
+        </div>
+
+        <div className="oji-up-3 oji-glow oji-glass rounded-2xl p-3 text-right">
           {entry === "url" ? (
             <div className="flex flex-col gap-2">
               <input value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" placeholder="https://example.com" className="w-full bg-transparent outline-none px-3 py-3 text-base placeholder:text-[var(--oji-muted)]" onKeyDown={(e) => e.key === "Enter" && launchUrl()} />
@@ -153,7 +174,7 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {shown.map((t) => (
-            <button key={t.id} onClick={() => go({ prompt: t.prompt, lang })} className="group text-right rounded-2xl bg-[var(--oji-surface)] border border-[var(--oji-border)] p-5 hover:border-[var(--oji-primary)] hover:-translate-y-1 transition">
+            <button key={t.id} onClick={() => go({ prompt: t.prompt, lang })} className="group text-right rounded-2xl oji-glass p-5 hover:border-[var(--oji-primary)] hover:-translate-y-1 transition">
               <div className="text-3xl mb-3">{t.emoji}</div>
               <div className="font-bold mb-1">{t.title}</div>
               <div className="text-xs text-[var(--oji-muted)]">{t.category}</div>
@@ -169,7 +190,7 @@ export default function Home() {
             { n: "٢", t: "يتولّد الموقع", d: "موقع كامل بصفحاته في دقائق." },
             { n: "٣", t: "عدّل وانشر", d: "بالنقر أو بالأمر، ثم انشر أو نزّل." },
           ].map((s) => (
-            <div key={s.n} className="rounded-2xl bg-[var(--oji-surface)] border border-[var(--oji-border)] p-6">
+            <div key={s.n} className="rounded-2xl oji-glass p-6">
               <div className="w-10 h-10 rounded-full bg-[var(--oji-surface-2)] border border-[var(--oji-border)] flex items-center justify-center font-bold mx-auto mb-3 text-[var(--oji-primary)]">{s.n}</div>
               <div className="font-bold mb-2">{s.t}</div>
               <div className="text-sm text-[var(--oji-muted)]">{s.d}</div>

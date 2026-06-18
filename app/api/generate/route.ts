@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { client, MODELS } from "@/lib/anthropic";
+import { client } from "@/lib/anthropic";
+import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
 import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
@@ -23,16 +24,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { prompt, mode, step, pageId, pageTitle, context, image, lang } = await req.json();
+  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang } = await req.json();
   if (!prompt || typeof prompt !== "string" || prompt.length > LIMITS.MAX_PROMPT_CHARS) {
     return NextResponse.json({ error: "الوصف مطلوب أو طويل جدًا" }, { status: 400 });
   }
 
-  const model = mode === "opus" ? MODELS.opus : MODELS.auto;
-  const langNote =
-    lang === "en"
-      ? "\n\nاجعل كل محتوى الموقع باللغة الإنجليزية و<html lang=\"en\" dir=\"ltr\">."
-      : "";
+  const model = MODEL_IDS.includes(reqModel) ? reqModel : DEFAULT_MODEL;
+  const langNote = lang === "en" ? "\n\nاجعل كل محتوى الموقع باللغة الإنجليزية و<html lang=\"en\" dir=\"ltr\">." : "";
 
   let system: string;
   let userContent: string;
@@ -46,22 +44,20 @@ export async function POST(req: NextRequest) {
       : `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}${langNote}`;
   }
 
-  // Optional image input (vision) for the shell step.
   type Block =
     | { type: "text"; text: string }
     | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
   const userBlocks: Block[] = [];
   if (image && image.data && image.mediaType && step !== "page") {
-    userBlocks.push({
-      type: "image",
-      source: { type: "base64", media_type: image.mediaType, data: image.data },
-    });
+    userBlocks.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data } });
   }
   userBlocks.push({ type: "text", text: userContent });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let usageIn = 0;
+      let usageOut = 0;
       try {
         const ai = client.messages.stream({
           model,
@@ -71,10 +67,15 @@ export async function POST(req: NextRequest) {
           messages: [{ role: "user", content: userBlocks as any }],
         });
         for await (const event of ai) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          if (event.type === "message_start") {
+            usageIn = event.message.usage?.input_tokens ?? 0;
+          } else if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
             controller.enqueue(encoder.encode(event.delta.text));
+          } else if (event.type === "message_delta") {
+            usageOut = event.usage?.output_tokens ?? usageOut;
           }
         }
+        controller.enqueue(encoder.encode(`\n<!--OJI_USAGE:${usageIn},${usageOut}-->`));
         controller.close();
       } catch (err) {
         const message = err instanceof Error ? err.message : "خطأ في التوليد";

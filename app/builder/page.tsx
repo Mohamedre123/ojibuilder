@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
 
 interface ChatMsg {
   role: "user" | "system";
@@ -15,14 +16,18 @@ interface ImageSeed {
   data: string;
   mediaType: string;
 }
-type Mode = "auto" | "opus";
 type Tab = "preview" | "code";
 type LastReq = { kind: "site" } | { kind: "edit"; instruction: string };
 
 // ---- helpers ---------------------------------------------------------------
 
+function readUsage(raw: string): { inT: number; outT: number } {
+  const m = raw.match(/<!--OJI_USAGE:(\d+),(\d+)-->/);
+  return m ? { inT: parseInt(m[1], 10), outT: parseInt(m[2], 10) } : { inT: 0, outT: 0 };
+}
+
 function cleanHtml(raw: string): string {
-  let out = raw.replace(/<!--OJI_ERROR:[\s\S]*?-->/g, "");
+  let out = raw.replace(/<!--OJI_(ERROR|USAGE):[\s\S]*?-->/g, "");
   out = out.replace(/```html\s*/gi, "").replace(/```/g, "");
   const i = out.search(/<!doctype html/i);
   if (i > 0) out = out.slice(i);
@@ -34,7 +39,7 @@ function cleanHtml(raw: string): string {
 
 function cleanInner(raw: string): string {
   let o = raw
-    .replace(/<!--OJI_ERROR:[\s\S]*?-->/g, "")
+    .replace(/<!--OJI_(ERROR|USAGE):[\s\S]*?-->/g, "")
     .replace(/```html\s*/gi, "")
     .replace(/```/g, "")
     .trim();
@@ -151,7 +156,7 @@ export default function Builder() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<Mode>("auto");
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [tab, setTab] = useState<Tab>("preview");
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -239,6 +244,9 @@ export default function Builder() {
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    const savedModel = sessionStorage.getItem("oji:model");
+    if (savedModel) setModel(savedModel);
 
     // Open a saved project via /builder?project=<id>
     const projectId = new URLSearchParams(window.location.search).get("project");
@@ -342,8 +350,10 @@ export default function Builder() {
     try {
       setMessages((m) => [...m, { role: "system", text: "⏳ أبني الهيكل والصفحة الرئيسية..." }]);
       let lastP = 0;
+      let totIn = 0;
+      let totOut = 0;
       const shellRaw = await streamText(
-        { prompt, mode, step: "shell", image, lang },
+        { prompt, model, step: "shell", image, lang },
         ac.signal,
         (buf) => {
           const c = cleanHtml(buf);
@@ -355,6 +365,7 @@ export default function Builder() {
           }
         }
       );
+      { const u = readUsage(shellRaw); totIn += u.inT; totOut += u.outT; }
       let current = cleanHtml(shellRaw);
       setHtml(current);
       setPreviewHtml(current);
@@ -366,9 +377,12 @@ export default function Builder() {
       for (const pg of toFill) {
         setMessages((m) => [...m, { role: "system", text: `⏳ أبني صفحة: ${pg.title}...` }]);
         const innerRaw = await streamText(
-          { prompt, mode, step: "page", pageId: pg.id, pageTitle: pg.title, context: current, lang },
+          { prompt, model, step: "page", pageId: pg.id, pageTitle: pg.title, context: current, lang },
           ac.signal
         );
+        const u = readUsage(innerRaw);
+        totIn += u.inT;
+        totOut += u.outT;
         current = injectPage(current, pg.id, cleanInner(innerRaw));
         setHtml(current);
         setPreviewHtml(current);
@@ -378,6 +392,7 @@ export default function Builder() {
       setMessages((m) => [
         ...m,
         { role: "system", text: "تم بناء موقعك بالكامل ✓ اطلب أي تعديل، أو فعّل التعديل اليدوي، أو انشره." },
+        { role: "system", text: `💡 استهلاك التوليد: ${estimateCost(totIn, totOut, model)}` },
       ]);
     } catch (e) {
       setError(mapError(e));
@@ -396,7 +411,7 @@ export default function Builder() {
       const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: htmlRef.current, instruction, mode }),
+        body: JSON.stringify({ html: htmlRef.current, instruction, model }),
         signal: ac.signal,
       });
       if (!res.ok || !res.body) {
@@ -428,7 +443,12 @@ export default function Builder() {
       sessionStorage.setItem("oji:html", finalHtml);
       commit(finalHtml);
       setTab("preview");
-      setMessages((m) => [...m, { role: "system", text: "تم تطبيق التعديل ✓" }]);
+      const u = readUsage(buf);
+      setMessages((m) => [
+        ...m,
+        { role: "system", text: "تم تطبيق التعديل ✓" },
+        { role: "system", text: `💡 استهلاك التعديل: ${estimateCost(u.inT, u.outT, model)}` },
+      ]);
     } catch (e) {
       setError(mapError(e));
       setTab(htmlRef.current ? "preview" : "code");
@@ -648,10 +668,17 @@ export default function Builder() {
           <button onClick={toggleEdit} disabled={!html || loading} className={`px-3 py-1.5 rounded-lg text-sm font-bold transition disabled:opacity-40 ${editMode ? "bg-[var(--oji-accent)] text-[#06121f]" : "border border-[var(--oji-border)] hover:border-[var(--oji-accent)]"}`}>
             {editMode ? "إنهاء التعديل ✓" : "✏️ تعديل يدوي"}
           </button>
-          <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs">
-            <button onClick={() => setMode("auto")} className={`px-3 py-1.5 ${mode === "auto" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>تلقائي</button>
-            <button onClick={() => setMode("opus")} className={`px-3 py-1.5 ${mode === "opus" ? "bg-[var(--oji-accent)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>متقدّم</button>
-          </div>
+          <select
+            value={model}
+            onChange={(e) => { setModel(e.target.value); sessionStorage.setItem("oji:model", e.target.value); }}
+            disabled={loading}
+            title="اختر نموذج الذكاء الاصطناعي"
+            className="px-2.5 py-1.5 rounded-lg border border-[var(--oji-border)] bg-[var(--oji-surface-2)] text-sm outline-none hover:border-[var(--oji-primary)] disabled:opacity-50 cursor-pointer"
+          >
+            {MODELS.map((mo) => (
+              <option key={mo.id} value={mo.id}>{mo.badge} {mo.label} · {mo.speed}</option>
+            ))}
+          </select>
           <button onClick={() => router.push("/projects")} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">مشاريعي</button>
           <button onClick={saveProject} disabled={!html || loading || saving} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {saving ? "...حفظ" : "💾 حفظ"}

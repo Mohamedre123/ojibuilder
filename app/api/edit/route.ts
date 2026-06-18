@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { client, MODELS } from "@/lib/anthropic";
+import { client } from "@/lib/anthropic";
+import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
 import { EDIT_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { html, instruction, mode } = await req.json();
+  const { html, instruction, model: reqModel } = await req.json();
   if (!html || !instruction) {
     return NextResponse.json({ error: "الكود الحالي وطلب التعديل مطلوبان" }, { status: 400 });
   }
@@ -36,31 +37,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "المحتوى كبير جدًا" }, { status: 413 });
   }
 
-  const model = mode === "opus" ? MODELS.opus : MODELS.auto;
+  const model = MODEL_IDS.includes(reqModel) ? reqModel : DEFAULT_MODEL;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let usageIn = 0;
+      let usageOut = 0;
       try {
         const ai = client.messages.stream({
           model,
           max_tokens: 16000,
           system: EDIT_SYSTEM_PROMPT,
           messages: [
-            {
-              role: "user",
-              content: `المستند الحالي:\n\n${html}\n\n---\n\nطلب التعديل: ${instruction}`,
-            },
+            { role: "user", content: `المستند الحالي:\n\n${html}\n\n---\n\nطلب التعديل: ${instruction}` },
           ],
         });
         for await (const event of ai) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
+          if (event.type === "message_start") {
+            usageIn = event.message.usage?.input_tokens ?? 0;
+          } else if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
             controller.enqueue(encoder.encode(event.delta.text));
+          } else if (event.type === "message_delta") {
+            usageOut = event.usage?.output_tokens ?? usageOut;
           }
         }
+        controller.enqueue(encoder.encode(`\n<!--OJI_USAGE:${usageIn},${usageOut}-->`));
         controller.close();
       } catch (err) {
         const message = err instanceof Error ? err.message : "خطأ في التعديل";
