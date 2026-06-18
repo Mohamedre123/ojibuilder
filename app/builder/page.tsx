@@ -117,6 +117,7 @@ const EDITOR_RUNTIME = `
     if(d.type==='delete'&&sel){ sel.remove(); sel=null; sync(); }
     if(d.type==='replaceImg'&&sel&&sel.tagName==='IMG'){ sel.src=d.url; sync(); }
     if(d.type==='insertImg'){ var img=document.createElement('img'); img.src=d.url; img.alt=''; img.style.maxWidth='100%'; img.style.borderRadius='12px'; (sel||document.body).appendChild(img); sync(); }
+    if(d.type==='style'&&sel){ try{ sel.style.setProperty(d.prop, d.value, 'important'); }catch(e){} sync(); }
   });
 })();
 </script>
@@ -491,6 +492,9 @@ export default function Builder() {
     const url = window.prompt("رابط الصورة المراد إضافتها:");
     if (url) iframePost({ type: "insertImg", url });
   }
+  function styleSelected(prop: string, value: string) {
+    iframePost({ type: "style", prop, value });
+  }
   function onEditFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -710,10 +714,22 @@ export default function Builder() {
               <div className="text-xs text-[var(--oji-muted)]">{selected ? `العنصر المحدد: <${selected.tag.toLowerCase()}>` : "انقر على أي جزء في المعاينة لتحديده"}</div>
               <input ref={editFileRef} type="file" accept="image/*" onChange={onEditFile} className="hidden" />
               {selected && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={deleteSelected} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-red-500 hover:text-red-300 transition">🗑 حذف</button>
-                  <button onClick={replaceImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🔗 صورة برابط</button>
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={deleteSelected} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-red-500 hover:text-red-300 transition">🗑 حذف</button>
+                    <button onClick={replaceImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🔗 صورة برابط</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs cursor-pointer">
+                      لون النص
+                      <input type="color" onChange={(e) => styleSelected("color", e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0" />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs cursor-pointer">
+                      لون الخلفية
+                      <input type="color" onChange={(e) => styleSelected("background-color", e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0" />
+                    </label>
+                  </div>
+                </>
               )}
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => editFileRef.current?.click()} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">⬆️ رفع صورة</button>

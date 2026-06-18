@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       try {
         const ai = client.messages.stream({
           model,
-          max_tokens: 8000,
+          max_tokens: 12000,
           system,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           messages: [{ role: "user", content: userBlocks as any }],
