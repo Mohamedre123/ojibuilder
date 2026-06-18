@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDomainSite, readPublished } from "@/lib/store";
 
 // Serves a published site for a connected custom domain.
-// The middleware rewrites custom-domain requests here with ?host=<domain>.
+// The proxy rewrites custom-domain requests here with ?host=<domain>.
 export async function GET(req: NextRequest) {
   const host = (req.nextUrl.searchParams.get("host") || req.headers.get("host") || "")
     .split(":")[0]
