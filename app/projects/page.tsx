@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PromoBanner from "@/components/PromoBanner";
+import Footer from "@/components/Footer";
 import { getSupabase } from "@/lib/supabase/client";
 import { authEnabled } from "@/lib/supabase/config";
 
@@ -96,6 +97,7 @@ export default function Projects() {
           </div>
         )}
       </main>
+      <Footer />
     </>
   );
 }

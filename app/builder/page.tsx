@@ -739,6 +739,7 @@ export default function Builder() {
             ))}
           </select>
           <button onClick={goProjects} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">مشاريعي</button>
+          <button onClick={() => router.push("/contact")} title="تواصل معنا" className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">☎ تواصل</button>
           {authEnabled && (
             user ? (
               <button onClick={logout} title={user.email || ""} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-red-500 hover:text-red-300 transition whitespace-nowrap">خروج</button>

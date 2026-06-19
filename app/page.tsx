@@ -6,6 +6,7 @@ import { TEMPLATES } from "@/lib/prompts";
 import { MODELS, DEFAULT_MODEL } from "@/lib/models";
 import PromoBanner from "@/components/PromoBanner";
 import { useUser } from "@/lib/supabase/useUser";
+import Footer from "@/components/Footer";
 
 type Entry = "text" | "image" | "url";
 
@@ -98,6 +99,7 @@ export default function Home() {
         <nav className="flex items-center gap-4 sm:gap-6 text-sm text-[var(--oji-muted)]">
           <a href="#templates" className="hidden sm:inline hover:text-white transition">القوالب</a>
           <a href="#how" className="hidden sm:inline hover:text-white transition">كيف يعمل</a>
+          <button onClick={() => router.push("/contact")} className="hidden sm:inline hover:text-white transition">تواصل</button>
           {authEnabled && (
             <button
               onClick={() => router.push(user ? "/projects" : "/login")}
@@ -251,7 +253,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="text-center text-sm text-[var(--oji-muted)] py-10 border-t border-[var(--oji-border)] mt-12">صُنع بـ oji builder</footer>
+      <Footer />
     </main>
   );
 }
