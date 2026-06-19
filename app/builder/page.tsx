@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
 import PromoBanner from "@/components/PromoBanner";
+import { useUser } from "@/lib/supabase/useUser";
+import { getSupabase } from "@/lib/supabase/client";
 
 interface ChatMsg {
   role: "user" | "system";
@@ -152,6 +154,9 @@ const SWATCHES = ["#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#ef444
 
 export default function Builder() {
   const router = useRouter();
+  const { user, authEnabled } = useUser();
+  const userRef = useRef<typeof user>(null);
+  userRef.current = user;
   const [html, setHtml] = useState("");
   const [previewHtml, setPreviewHtml] = useState("");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -255,15 +260,24 @@ export default function Builder() {
       (async () => {
         setLoading(true);
         try {
-          const res = await fetch(`/api/projects/${projectId}`);
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "تعذّر فتح المشروع");
+          let proj: { html: string; title: string };
+          const sb = getSupabase();
+          if (authEnabled && sb) {
+            const { data, error } = await sb.from("projects").select("html,title").eq("id", projectId).single();
+            if (error || !data) throw new Error("تعذّر فتح المشروع");
+            proj = data as { html: string; title: string };
+          } else {
+            const res = await fetch(`/api/projects/${projectId}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "تعذّر فتح المشروع");
+            proj = data;
+          }
           projectIdRef.current = projectId;
-          setHtml(data.html);
-          setPreviewHtml(data.html);
-          commit(data.html);
-          sessionStorage.setItem("oji:html", data.html);
-          setMessages([{ role: "system", text: `تم فتح المشروع: ${data.title}` }]);
+          setHtml(proj.html);
+          setPreviewHtml(proj.html);
+          commit(proj.html);
+          sessionStorage.setItem("oji:html", proj.html);
+          setMessages([{ role: "system", text: `تم فتح المشروع: ${proj.title}` }]);
         } catch (e) {
           setError(mapError(e));
         } finally {
@@ -554,23 +568,64 @@ export default function Builder() {
     }
   }
 
+  // Returns false (and redirects to login) when auth is on but the user is a guest.
+  function requireLogin(): boolean {
+    if (authEnabled && !userRef.current) {
+      router.push("/login?returnTo=/builder");
+      return false;
+    }
+    return true;
+  }
+
+  function goProjects() {
+    if (!requireLogin()) return;
+    router.push("/projects");
+  }
+
+  async function logout() {
+    const sb = getSupabase();
+    if (sb) await sb.auth.signOut();
+    try { localStorage.removeItem("oji:lastActive"); } catch {}
+    router.push("/");
+  }
+
   async function saveProject() {
     if (!html || saving || loading) return;
+    if (!requireLogin()) return;
     const current = projectIdRef.current;
     const def = (seedRef.current.prompt || "مشروعي").slice(0, 40);
     const title = window.prompt("اسم المشروع:", def);
     if (title === null) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current || undefined, html: cleanHtml(html), title }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "تعذّر الحفظ");
-      projectIdRef.current = data.id;
-      rememberProject(data.id, title || "مشروع بدون اسم");
+      if (authEnabled) {
+        const sb = getSupabase();
+        if (!sb || !userRef.current) throw new Error("سجّل الدخول أولًا");
+        const row = {
+          user_id: userRef.current.id,
+          title: title || "مشروع بدون اسم",
+          html: cleanHtml(html),
+          updated_at: new Date().toISOString(),
+        };
+        if (current) {
+          const { error } = await sb.from("projects").update(row).eq("id", current);
+          if (error) throw error;
+        } else {
+          const { data, error } = await sb.from("projects").insert(row).select("id").single();
+          if (error) throw error;
+          projectIdRef.current = data.id as string;
+        }
+      } else {
+        const res = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: current || undefined, html: cleanHtml(html), title }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "تعذّر الحفظ");
+        projectIdRef.current = data.id;
+        rememberProject(data.id, title || "مشروع بدون اسم");
+      }
       setMessages((m) => [...m, { role: "system", text: "💾 تم حفظ المشروع. تجده في «مشاريعي»." }]);
     } catch (e) {
       setError(mapError(e));
@@ -581,6 +636,7 @@ export default function Builder() {
 
   async function publish() {
     if (!html || publishing) return;
+    if (!requireLogin()) return;
     setPublishing(true);
     try {
       const res = await fetch("/api/publish", {
@@ -603,6 +659,7 @@ export default function Builder() {
 
   async function connectDomain() {
     if (linking) return;
+    if (!requireLogin()) return;
     if (!publishedIdRef.current) {
       alert("انشر الموقع أولًا بزر «🚀 نشر»، ثم اربط النطاق.");
       return;
@@ -681,7 +738,14 @@ export default function Builder() {
               <option key={mo.id} value={mo.id}>{mo.badge} {mo.label} · {mo.speed}</option>
             ))}
           </select>
-          <button onClick={() => router.push("/projects")} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">مشاريعي</button>
+          <button onClick={goProjects} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">مشاريعي</button>
+          {authEnabled && (
+            user ? (
+              <button onClick={logout} title={user.email || ""} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-red-500 hover:text-red-300 transition whitespace-nowrap">خروج</button>
+            ) : (
+              <button onClick={() => router.push("/login?returnTo=/builder")} className="px-3 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">دخول</button>
+            )
+          )}
           <button onClick={saveProject} disabled={!html || loading || saving} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {saving ? "...حفظ" : "💾 حفظ"}
           </button>

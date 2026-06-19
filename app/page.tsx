@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { TEMPLATES } from "@/lib/prompts";
 import { MODELS, DEFAULT_MODEL } from "@/lib/models";
 import PromoBanner from "@/components/PromoBanner";
+import { useUser } from "@/lib/supabase/useUser";
 
 type Entry = "text" | "image" | "url";
 
 export default function Home() {
   const router = useRouter();
+  const { user, authEnabled } = useUser();
   const [prompt, setPrompt] = useState("");
   const [entry, setEntry] = useState<Entry>("text");
   const [url, setUrl] = useState("");
@@ -93,9 +95,17 @@ export default function Home() {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--oji-primary)] to-[var(--oji-accent)] flex items-center justify-center font-extrabold text-[#06121f]">O</div>
           <span className="text-xl font-extrabold">oji <span className="oji-gradient-text">builder</span></span>
         </div>
-        <nav className="hidden sm:flex items-center gap-6 text-sm text-[var(--oji-muted)]">
-          <a href="#templates" className="hover:text-white transition">القوالب</a>
-          <a href="#how" className="hover:text-white transition">كيف يعمل</a>
+        <nav className="flex items-center gap-4 sm:gap-6 text-sm text-[var(--oji-muted)]">
+          <a href="#templates" className="hidden sm:inline hover:text-white transition">القوالب</a>
+          <a href="#how" className="hidden sm:inline hover:text-white transition">كيف يعمل</a>
+          {authEnabled && (
+            <button
+              onClick={() => router.push(user ? "/projects" : "/login")}
+              className="px-4 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-white hover:border-[var(--oji-primary)] transition"
+            >
+              {user ? "مشاريعي" : "دخول"}
+            </button>
+          )}
         </nav>
       </header>
 

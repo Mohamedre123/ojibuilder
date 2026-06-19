@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import SessionWatcher from "@/components/SessionWatcher";
 
 export const metadata: Metadata = {
   title: "oji builder — ابنِ موقعك بالذكاء الاصطناعي",
@@ -26,7 +27,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <SessionWatcher />
+        {children}
+      </body>
     </html>
   );
 }
