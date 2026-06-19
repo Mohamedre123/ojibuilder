@@ -108,7 +108,7 @@ export default function Home() {
         <nav className="hidden sm:flex items-center gap-6 text-sm text-[var(--oji-muted)]">
           <a href="#templates" className="hover:text-white transition">القوالب</a>
           <a href="#how" className="hover:text-white transition">كيف يعمل</a>
-          <button onClick={() => router.push("/oji-brain")} className="hover:text-white transition">oji brain</button>
+          <button onClick={() => router.push("/oji-brain")} className="font-bold text-transparent bg-clip-text bg-gradient-to-l from-[#d946ef] to-[#22d3ee] hover:opacity-80 transition">🚀 كبّر مشروعك بالـ AI</button>
           <button onClick={() => router.push("/contact")} className="hover:text-white transition">تواصل</button>
           {authEnabled && user && (
             <>
@@ -139,7 +139,7 @@ export default function Home() {
             <nav className="flex flex-col p-3 gap-1 text-[15px]">
               <a href="#templates" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">القوالب</a>
               <a href="#how" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">كيف يعمل</a>
-              <button onClick={() => { setMenuOpen(false); router.push("/oji-brain"); }} className="text-right px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">🧠 oji brain</button>
+              <button onClick={() => { setMenuOpen(false); router.push("/oji-brain"); }} className="text-right px-4 py-3 rounded-xl font-bold text-transparent bg-clip-text bg-gradient-to-l from-[#d946ef] to-[#22d3ee] hover:bg-[var(--oji-surface-2)] transition">🚀 كبّر مشروعك بالـ AI</button>
               <button onClick={() => { setMenuOpen(false); router.push("/contact"); }} className="text-right px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">تواصل معنا</button>
               {authEnabled && user && (
                 <>
