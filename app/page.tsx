@@ -222,7 +222,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="templates" className="max-w-5xl mx-auto px-6 py-10">
+      <section id="templates" className="oji-reveal max-w-5xl mx-auto px-6 py-10">
         <h2 className="text-2xl font-bold mb-1 text-center">ابدأ من قالب جاهز</h2>
         <p className="text-[var(--oji-muted)] text-center mb-6">اضغط على أي قالب لتوليده فورًا، ثم خصّصه كما تشاء.</p>
         <div className="flex flex-wrap items-center justify-center gap-2 mb-7">
@@ -242,7 +242,7 @@ export default function Home() {
       </section>
 
       {/* oji brain promo section */}
-      <section className="max-w-5xl mx-auto px-6 py-10">
+      <section className="oji-reveal max-w-5xl mx-auto px-6 py-10">
         <a
           href="https://oji-brain.site/"
           target="_blank"
@@ -281,7 +281,7 @@ export default function Home() {
         </a>
       </section>
 
-      <section id="how" className="max-w-4xl mx-auto px-6 py-12">
+      <section id="how" className="oji-reveal max-w-4xl mx-auto px-6 py-12">
         <div className="grid sm:grid-cols-3 gap-6 text-center">
           {[
             { n: "١", t: "صِف فكرتك", d: "نص، صورة، أو رابط موقع." },

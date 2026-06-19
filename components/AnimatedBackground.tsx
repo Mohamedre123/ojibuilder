@@ -11,11 +11,6 @@ export default function AnimatedBackground() {
   useEffect(() => {
     const el = glowRef.current;
     if (!el) return;
-    // Skip the cursor glow on touch / coarse pointers (phones).
-    if (window.matchMedia("(pointer: coarse)").matches) {
-      el.style.display = "none";
-      return;
-    }
     let raf = 0;
     let tx = window.innerWidth / 2;
     let ty = window.innerHeight / 2;
@@ -37,9 +32,18 @@ export default function AnimatedBackground() {
       ty = e.clientY;
       if (!raf) raf = requestAnimationFrame(loop);
     }
+    function onTouch(e: TouchEvent) {
+      const t = e.touches[0];
+      if (!t) return;
+      tx = t.clientX;
+      ty = t.clientY;
+      if (!raf) raf = requestAnimationFrame(loop);
+    }
     window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("touchmove", onTouch, { passive: true });
     return () => {
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("touchmove", onTouch);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);

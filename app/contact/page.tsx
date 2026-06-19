@@ -24,7 +24,7 @@ export default function Contact() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="oji-reveal grid grid-cols-1 sm:grid-cols-3 gap-5">
           {CONTACTS.map((c) => (
             <div key={c.num} className="oji-glass oji-glow rounded-3xl p-6 text-center flex flex-col">
               <div className="text-4xl mb-3">{c.emoji}</div>

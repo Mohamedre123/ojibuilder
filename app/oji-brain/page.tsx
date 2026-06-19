@@ -34,7 +34,7 @@ export default function OjiBrain() {
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+        <div className="oji-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
           {FEATURES.map((f) => (
             <div key={f.title} className="oji-glass rounded-2xl p-5 text-center sm:text-right">
               <div className="text-3xl mb-3">{f.emoji}</div>
@@ -45,7 +45,7 @@ export default function OjiBrain() {
         </div>
 
         {/* Concept */}
-        <div className="oji-glass rounded-3xl p-6 sm:p-8 text-center mb-12">
+        <div className="oji-reveal oji-glass rounded-3xl p-6 sm:p-8 text-center mb-12">
           <h2 className="text-xl sm:text-2xl font-extrabold mb-3">الفكرة باختصار</h2>
           <p className="text-[var(--oji-muted)] max-w-3xl mx-auto leading-relaxed">
             بدل ما تتنقّل بين عشرات الأدوات، oji brain بيجمعها كلها في منصة واحدة ذكية. كل أداة مدعومة بالذكاء الاصطناعي ووكلاء يشتغلوا معك خطوة بخطوة — توفّر وقتك، تنظّم شغلك، وتسرّع نمو مشروعك.
@@ -53,7 +53,7 @@ export default function OjiBrain() {
         </div>
 
         {/* CTA */}
-        <div className="text-center">
+        <div className="oji-reveal text-center">
           <a
             href="https://oji-brain.site/"
             target="_blank"

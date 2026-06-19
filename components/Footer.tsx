@@ -7,7 +7,7 @@ const CONTACTS = [
 export default function Footer() {
   return (
     <footer className="border-t border-[var(--oji-border)] mt-12">
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="oji-reveal max-w-5xl mx-auto px-6 py-10">
         {/* oji brain promo */}
         <a
           href="https://oji-brain.site/"

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SessionWatcher from "@/components/SessionWatcher";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import AutoReveal from "@/components/AutoReveal";
 
 export const metadata: Metadata = {
   title: "oji builder — ابنِ موقعك بالذكاء الاصطناعي",
@@ -30,6 +31,7 @@ export default function RootLayout({
       </head>
       <body>
         <AnimatedBackground />
+        <AutoReveal />
         <SessionWatcher />
         {children}
       </body>
