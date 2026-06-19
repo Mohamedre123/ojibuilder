@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import PromoBanner from "@/components/PromoBanner";
 import Footer from "@/components/Footer";
 import { getSupabase } from "@/lib/supabase/client";
 import { authEnabled } from "@/lib/supabase/config";
@@ -64,11 +63,15 @@ export default function Projects() {
 
   return (
     <>
-      <PromoBanner />
       <main className="min-h-screen max-w-3xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-extrabold">مشاريعي</h1>
-          <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">+ مشروع جديد</button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push("/")} className="text-sm text-[var(--oji-muted)] hover:text-white transition">+ مشروع جديد</button>
+            {authEnabled && (
+              <button onClick={async () => { const sb = getSupabase(); if (sb) await sb.auth.signOut(); router.replace("/login"); }} className="text-sm px-3 py-1.5 rounded-lg border border-[var(--oji-border)] hover:border-red-500 hover:text-red-300 transition">خروج</button>
+            )}
+          </div>
         </div>
 
         {loading ? (

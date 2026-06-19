@@ -4,8 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TEMPLATES } from "@/lib/prompts";
 import { MODELS, DEFAULT_MODEL } from "@/lib/models";
-import PromoBanner from "@/components/PromoBanner";
 import { useUser } from "@/lib/supabase/useUser";
+import { getSupabase } from "@/lib/supabase/client";
 import Footer from "@/components/Footer";
 
 type Entry = "text" | "image" | "url";
@@ -26,6 +26,13 @@ export default function Home() {
   function pickModel(id: string) {
     setModel(id);
     sessionStorage.setItem("oji:model", id);
+  }
+
+  async function logout() {
+    setMenuOpen(false);
+    const sb = getSupabase();
+    if (sb) await sb.auth.signOut();
+    router.refresh();
   }
 
   const categories = useMemo(
@@ -91,7 +98,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      <PromoBanner />
       <header className="relative flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 max-w-6xl mx-auto">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--oji-primary)] to-[var(--oji-accent)] flex items-center justify-center font-extrabold text-[#06121f]">O</div>
@@ -102,37 +108,52 @@ export default function Home() {
         <nav className="hidden sm:flex items-center gap-6 text-sm text-[var(--oji-muted)]">
           <a href="#templates" className="hover:text-white transition">القوالب</a>
           <a href="#how" className="hover:text-white transition">كيف يعمل</a>
+          <button onClick={() => router.push("/oji-brain")} className="hover:text-white transition">oji brain</button>
           <button onClick={() => router.push("/contact")} className="hover:text-white transition">تواصل</button>
-          {authEnabled && (
-            <button onClick={() => router.push(user ? "/projects" : "/login")} className="px-4 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-white hover:border-[var(--oji-primary)] transition">
-              {user ? "مشاريعي" : "دخول"}
-            </button>
+          {authEnabled && user && (
+            <>
+              <button onClick={() => router.push("/projects")} className="px-4 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-white hover:border-[var(--oji-primary)] transition">مشاريعي</button>
+              <button onClick={logout} title={user.email || ""} className="px-4 py-1.5 rounded-lg border border-[var(--oji-border)] hover:border-red-500 hover:text-red-300 transition">خروج</button>
+            </>
+          )}
+          {authEnabled && !user && (
+            <button onClick={() => router.push("/login")} className="px-4 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-white hover:border-[var(--oji-primary)] transition">دخول</button>
           )}
         </nav>
 
         {/* Mobile hamburger */}
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="القائمة"
-          className="sm:hidden w-10 h-10 rounded-lg border border-[var(--oji-border)] flex items-center justify-center text-xl"
-        >
-          {menuOpen ? "✕" : "☰"}
+        <button onClick={() => setMenuOpen(true)} aria-label="القائمة" className="sm:hidden w-10 h-10 rounded-lg border border-[var(--oji-border)] flex items-center justify-center text-xl">
+          ☰
         </button>
-
-        {/* Mobile menu */}
-        {menuOpen && (
-          <div className="sm:hidden absolute top-full inset-x-4 mt-2 z-50 oji-glass rounded-2xl p-2 flex flex-col text-sm">
-            <a href="#templates" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">القوالب</a>
-            <a href="#how" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">كيف يعمل</a>
-            <button onClick={() => { setMenuOpen(false); router.push("/contact"); }} className="text-right px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">تواصل معنا</button>
-            {authEnabled && (
-              <button onClick={() => { setMenuOpen(false); router.push(user ? "/projects" : "/login"); }} className="mt-1 px-4 py-3 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f]">
-                {user ? "مشاريعي" : "تسجيل الدخول"}
-              </button>
-            )}
-          </div>
-        )}
       </header>
+
+      {/* Mobile side drawer (right) */}
+      {menuOpen && (
+        <div className="sm:hidden fixed inset-0 z-[60]">
+          <div onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-black/70" />
+          <div className="oji-drawer absolute top-0 right-0 bottom-0 w-72 max-w-[82vw] bg-[var(--oji-surface)] border-l border-[var(--oji-border)] shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--oji-border)]">
+              <span className="font-extrabold">oji <span className="oji-gradient-text">builder</span></span>
+              <button onClick={() => setMenuOpen(false)} aria-label="إغلاق" className="w-9 h-9 rounded-lg border border-[var(--oji-border)] flex items-center justify-center text-lg">✕</button>
+            </div>
+            <nav className="flex flex-col p-3 gap-1 text-[15px]">
+              <a href="#templates" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">القوالب</a>
+              <a href="#how" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">كيف يعمل</a>
+              <button onClick={() => { setMenuOpen(false); router.push("/oji-brain"); }} className="text-right px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">🧠 oji brain</button>
+              <button onClick={() => { setMenuOpen(false); router.push("/contact"); }} className="text-right px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">تواصل معنا</button>
+              {authEnabled && user && (
+                <>
+                  <button onClick={() => { setMenuOpen(false); router.push("/projects"); }} className="mt-2 px-4 py-3 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f]">مشاريعي</button>
+                  <button onClick={logout} className="px-4 py-3 rounded-xl text-right border border-[var(--oji-border)] hover:border-red-500 hover:text-red-300 transition">تسجيل الخروج</button>
+                </>
+              )}
+              {authEnabled && !user && (
+                <button onClick={() => { setMenuOpen(false); router.push("/login"); }} className="mt-2 px-4 py-3 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f]">تسجيل الدخول</button>
+              )}
+            </nav>
+          </div>
+        </div>
+      )}
 
       <section className="max-w-3xl mx-auto px-6 pt-14 pb-12 text-center">
         <div className="oji-up inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full oji-glass text-[var(--oji-muted)] mb-6">

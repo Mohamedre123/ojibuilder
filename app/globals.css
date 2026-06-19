@@ -92,6 +92,10 @@ img, iframe, video, canvas { max-width: 100%; }
 .oji-float { animation: oji-float 6s ease-in-out infinite; }
 .oji-pulse { animation: oji-pulse-ring 2s infinite; }
 
+/* Mobile side drawer (slides in from the right in RTL) */
+@keyframes oji-slide-in { from { transform: translateX(100%); opacity: .4; } to { transform: none; opacity: 1; } }
+.oji-drawer { animation: oji-slide-in .25s ease both; }
+
 /* Promo banner — animated brand gradient */
 .oji-promo {
   background: linear-gradient(90deg, #7c3aed, #d946ef, #22d3ee, #7c3aed);
@@ -100,7 +104,7 @@ img, iframe, video, canvas { max-width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body::before, .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo { animation: none !important; }
+  body::before, .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo, .oji-drawer { animation: none !important; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
