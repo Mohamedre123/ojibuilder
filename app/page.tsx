@@ -20,6 +20,7 @@ export default function Home() {
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [cat, setCat] = useState("الكل");
   const [busy, setBusy] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function pickModel(id: string) {
@@ -91,24 +92,46 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       <PromoBanner />
-      <header className="flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
+      <header className="relative flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 max-w-6xl mx-auto">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--oji-primary)] to-[var(--oji-accent)] flex items-center justify-center font-extrabold text-[#06121f]">O</div>
           <span className="text-xl font-extrabold">oji <span className="oji-gradient-text">builder</span></span>
         </div>
-        <nav className="flex items-center gap-4 sm:gap-6 text-sm text-[var(--oji-muted)]">
-          <a href="#templates" className="hidden sm:inline hover:text-white transition">القوالب</a>
-          <a href="#how" className="hidden sm:inline hover:text-white transition">كيف يعمل</a>
-          <button onClick={() => router.push("/contact")} className="hidden sm:inline hover:text-white transition">تواصل</button>
+
+        {/* Desktop nav */}
+        <nav className="hidden sm:flex items-center gap-6 text-sm text-[var(--oji-muted)]">
+          <a href="#templates" className="hover:text-white transition">القوالب</a>
+          <a href="#how" className="hover:text-white transition">كيف يعمل</a>
+          <button onClick={() => router.push("/contact")} className="hover:text-white transition">تواصل</button>
           {authEnabled && (
-            <button
-              onClick={() => router.push(user ? "/projects" : "/login")}
-              className="px-4 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-white hover:border-[var(--oji-primary)] transition"
-            >
+            <button onClick={() => router.push(user ? "/projects" : "/login")} className="px-4 py-1.5 rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] text-white hover:border-[var(--oji-primary)] transition">
               {user ? "مشاريعي" : "دخول"}
             </button>
           )}
         </nav>
+
+        {/* Mobile hamburger */}
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="القائمة"
+          className="sm:hidden w-10 h-10 rounded-lg border border-[var(--oji-border)] flex items-center justify-center text-xl"
+        >
+          {menuOpen ? "✕" : "☰"}
+        </button>
+
+        {/* Mobile menu */}
+        {menuOpen && (
+          <div className="sm:hidden absolute top-full inset-x-4 mt-2 z-50 oji-glass rounded-2xl p-2 flex flex-col text-sm">
+            <a href="#templates" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">القوالب</a>
+            <a href="#how" onClick={() => setMenuOpen(false)} className="px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">كيف يعمل</a>
+            <button onClick={() => { setMenuOpen(false); router.push("/contact"); }} className="text-right px-4 py-3 rounded-xl hover:bg-[var(--oji-surface-2)] transition">تواصل معنا</button>
+            {authEnabled && (
+              <button onClick={() => { setMenuOpen(false); router.push(user ? "/projects" : "/login"); }} className="mt-1 px-4 py-3 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f]">
+                {user ? "مشاريعي" : "تسجيل الدخول"}
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       <section className="max-w-3xl mx-auto px-6 pt-14 pb-12 text-center">
