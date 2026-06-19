@@ -100,10 +100,10 @@ export default function Login() {
               inputMode="numeric"
               dir="ltr"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
               onKeyDown={(e) => e.key === "Enter" && verify()}
-              placeholder="••••••"
-              className="w-full text-center tracking-[0.5em] text-xl rounded-xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] px-4 py-3 outline-none focus:border-[var(--oji-primary)] mb-3"
+              placeholder="أدخل الرمز"
+              className="w-full text-center tracking-[0.4em] text-xl rounded-xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] px-4 py-3 outline-none focus:border-[var(--oji-primary)] mb-3"
             />
             <button onClick={verify} disabled={busy || code.length < 6} className="w-full py-3 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] disabled:opacity-40 transition mb-2">
               {busy ? "...جارٍ التحقّق" : "تأكيد ودخول"}
