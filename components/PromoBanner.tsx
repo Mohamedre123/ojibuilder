@@ -1,22 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // Dismissible promo banner for oji brain (the user's other product).
-// Shown on every page (landing + app). Persists dismissal in localStorage.
+// Dismissal is per-view (in-memory) — it reappears on every refresh / reopen.
 export default function PromoBanner() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    setShow(localStorage.getItem("oji:promo") !== "off");
-  }, []);
-
+  const [show, setShow] = useState(true);
   if (!show) return null;
 
   function close(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    localStorage.setItem("oji:promo", "off");
     setShow(false);
   }
 

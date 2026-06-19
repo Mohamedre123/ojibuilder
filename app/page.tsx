@@ -185,6 +185,46 @@ export default function Home() {
         </div>
       </section>
 
+      {/* oji brain promo section */}
+      <section className="max-w-5xl mx-auto px-6 py-10">
+        <a
+          href="https://oji-brain.site/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group block relative overflow-hidden rounded-3xl p-[1px] bg-gradient-to-l from-[#7c3aed] via-[#d946ef] to-[#22d3ee] oji-glow"
+        >
+          <div className="relative rounded-3xl bg-[var(--oji-surface)] px-6 sm:px-10 py-8 sm:py-10 overflow-hidden">
+            <div className="absolute -top-16 -start-16 w-56 h-56 rounded-full bg-[#d946ef]/20 blur-3xl pointer-events-none" />
+            <div className="relative flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex-1 min-w-0 text-center md:text-right">
+                <div className="inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full oji-glass text-[var(--oji-muted)] mb-4">
+                  <span className="w-2 h-2 rounded-full bg-[#d946ef] animate-pulse" /> منتجنا الجديد
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold mb-3">
+                  جرّب <span className="oji-gradient-text">oji brain</span> — دراعك اليمين بالذكاء الاصطناعي
+                </h2>
+                <p className="text-[var(--oji-muted)] mb-5 max-w-2xl">
+                  منصة متكاملة تجمع كل أدوات الذكاء الاصطناعي في مكان واحد لتكبير مشروعك.
+                </p>
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-6">
+                  {["✍️ توليد البرومبت", "🖼️ الصور", "🎬 الفيديو", "📈 الاستراتيجيات", "🤖 وكلاء AI في كل جزء"].map((f) => (
+                    <span key={f} className="text-xs px-3 py-1.5 rounded-full oji-glass">{f}</span>
+                  ))}
+                </div>
+                <span className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-gradient-to-l from-[#7c3aed] to-[#d946ef] text-white group-hover:scale-105 transition shadow-lg">
+                  اكتشف oji brain <span aria-hidden>↗</span>
+                </span>
+              </div>
+              <div className="shrink-0 mx-auto md:mx-0">
+                <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-gradient-to-br from-[#7c3aed] to-[#22d3ee] flex items-center justify-center text-6xl sm:text-7xl oji-float shadow-2xl">
+                  🧠
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </section>
+
       <section id="how" className="max-w-4xl mx-auto px-6 py-12">
         <div className="grid sm:grid-cols-3 gap-6 text-center">
           {[
