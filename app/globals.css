@@ -29,34 +29,38 @@ html, body {
 
 body { position: relative; overflow-x: hidden; }
 
-/* Animated aurora background (GPU-friendly: transform/opacity only) */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -25%;
-  z-index: -2;
-  background:
-    radial-gradient(38% 38% at 18% 28%, rgba(34, 211, 238, 0.30), transparent 60%),
-    radial-gradient(34% 34% at 82% 18%, rgba(176, 108, 255, 0.26), transparent 60%),
-    radial-gradient(42% 42% at 62% 82%, rgba(8, 145, 178, 0.24), transparent 62%),
-    radial-gradient(30% 30% at 30% 75%, rgba(176, 108, 255, 0.18), transparent 60%);
-  filter: blur(46px);
-  animation: oji-aurora 20s ease-in-out infinite alternate;
-}
+/* Vignette so content stays readable over the animated background */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(circle at 50% -10%, transparent 30%, var(--oji-bg) 78%);
+  background: radial-gradient(circle at 50% -10%, transparent 35%, var(--oji-bg) 82%);
 }
 
-@keyframes oji-aurora {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  50%  { transform: translate3d(2.5%, -2.5%, 0) scale(1.12); }
-  100% { transform: translate3d(-2.5%, 2.5%, 0) scale(1.06); }
+/* ===== Interactive animated background (AnimatedBackground component) ===== */
+.oji-bg-fx { position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none; }
+.oji-orb { position: absolute; border-radius: 50%; filter: blur(64px); opacity: .55; will-change: transform; }
+.oji-orb-1 { width: 52vmax; height: 52vmax; top: -16vmax; right: -10vmax; background: radial-gradient(circle, rgba(34,211,238,.5), transparent 70%); animation: oji-drift1 26s ease-in-out infinite alternate; }
+.oji-orb-2 { width: 46vmax; height: 46vmax; bottom: -14vmax; left: -8vmax; background: radial-gradient(circle, rgba(176,108,255,.45), transparent 70%); animation: oji-drift2 32s ease-in-out infinite alternate; }
+.oji-orb-3 { width: 40vmax; height: 40vmax; top: 28%; left: 34%; background: radial-gradient(circle, rgba(8,145,178,.4), transparent 70%); animation: oji-drift3 22s ease-in-out infinite alternate; }
+.oji-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(circle at 50% 35%, #000 25%, transparent 72%);
+  mask-image: radial-gradient(circle at 50% 35%, #000 25%, transparent 72%);
 }
+.oji-cursor-glow {
+  position: absolute; top: 0; left: 0; width: 420px; height: 420px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(34,211,238,.16), transparent 65%);
+  will-change: transform; transform: translate(-50%, -50%);
+}
+
+@keyframes oji-drift1 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(-12vmax,10vmax) scale(1.15); } }
+@keyframes oji-drift2 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(10vmax,-8vmax) scale(1.12); } }
+@keyframes oji-drift3 { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(8vmax,6vmax) scale(1.22); } 100% { transform: translate(-6vmax,-4vmax) scale(1); } }
 
 img, iframe, video, canvas { max-width: 100%; }
 
@@ -72,10 +76,12 @@ img, iframe, video, canvas { max-width: 100%; }
 }
 
 .oji-gradient-text {
-  background: linear-gradient(90deg, var(--oji-primary), var(--oji-accent));
+  background: linear-gradient(90deg, var(--oji-primary), var(--oji-accent), var(--oji-primary));
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  animation: oji-shimmer 6s linear infinite;
 }
 
 .oji-glow { box-shadow: 0 0 0 1px var(--oji-border), 0 24px 60px -22px rgba(34, 211, 238, 0.45); }
@@ -104,7 +110,8 @@ img, iframe, video, canvas { max-width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body::before, .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo, .oji-drawer { animation: none !important; }
+  .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo, .oji-drawer,
+  .oji-orb-1, .oji-orb-2, .oji-orb-3, .oji-gradient-text { animation: none !important; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
