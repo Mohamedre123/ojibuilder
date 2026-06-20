@@ -160,8 +160,8 @@ export default function Home() {
           <span className="w-2 h-2 rounded-full bg-[var(--oji-primary)] animate-pulse" />
           مدعوم بأحدث نماذج الذكاء الاصطناعي من Claude
         </div>
-        <h1 className="oji-up text-4xl sm:text-6xl font-extrabold leading-tight mb-5">
-          اكتب فكرتك، واحصل على <span className="oji-gradient-text">موقع كامل</span>
+        <h1 className="oji-up text-5xl sm:text-7xl font-extrabold leading-[1.1] mb-5">
+          اكتب فكرتك،<br className="sm:hidden" /> واحصل على <span className="oji-gradient-text">موقع كامل</span>
         </h1>
         <p className="oji-up-2 text-base sm:text-lg text-[var(--oji-muted)] mb-7 max-w-xl mx-auto">
           من نص، أو صورة تصميم، أو رابط موقع قائم — ودع oji builder يبنيه ويتيح لك تعديل كل جزء.

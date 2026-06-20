@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  /* oji builder — refreshed palette: deep space navy + cyan/violet aurora */
-  --oji-bg: #060a18;
-  --oji-surface: #0d1428;
-  --oji-surface-2: #141d38;
-  --oji-border: #233156;
-  --oji-primary: #22d3ee;        /* cyan */
-  --oji-primary-strong: #0891b2;
-  --oji-accent: #b06cff;          /* violet */
-  --oji-text: #e9f1ff;
-  --oji-muted: #8ea3c6;
+  /* oji builder — "Ember Sunset" theme: deep plum + warm orange/magenta */
+  --oji-bg: #0b0712;
+  --oji-surface: #15101f;
+  --oji-surface-2: #20172e;
+  --oji-border: #352847;
+  --oji-primary: #ff8a4c;        /* warm orange */
+  --oji-primary-strong: #fb6f3a;
+  --oji-accent: #e879f9;          /* magenta */
+  --oji-text: #f6eefc;
+  --oji-muted: #b2a2c8;
 }
 
 * { box-sizing: border-box; }
@@ -36,31 +36,42 @@ body::after {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(circle at 50% -10%, transparent 35%, var(--oji-bg) 82%);
+  background: radial-gradient(circle at 50% 0%, transparent 42%, var(--oji-bg) 88%);
 }
 
 /* ===== Interactive animated background (AnimatedBackground component) ===== */
 .oji-bg-fx { position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none; }
-.oji-orb { position: absolute; border-radius: 50%; filter: blur(64px); opacity: .55; will-change: transform; }
-.oji-orb-1 { width: 52vmax; height: 52vmax; top: -16vmax; right: -10vmax; background: radial-gradient(circle, rgba(34,211,238,.5), transparent 70%); animation: oji-drift1 26s ease-in-out infinite alternate; }
-.oji-orb-2 { width: 46vmax; height: 46vmax; bottom: -14vmax; left: -8vmax; background: radial-gradient(circle, rgba(176,108,255,.45), transparent 70%); animation: oji-drift2 32s ease-in-out infinite alternate; }
-.oji-orb-3 { width: 40vmax; height: 40vmax; top: 28%; left: 34%; background: radial-gradient(circle, rgba(8,145,178,.4), transparent 70%); animation: oji-drift3 22s ease-in-out infinite alternate; }
+
+/* Slow-rotating conic mesh — cheap, smooth motion on every page */
+.oji-mesh {
+  position: absolute; inset: -30%;
+  background: conic-gradient(from 0deg at 50% 50%,
+    rgba(255,138,76,.10), rgba(232,121,249,.10), rgba(124,58,237,.07),
+    rgba(255,138,76,.10));
+  animation: oji-spin 48s linear infinite;
+  will-change: transform;
+}
+.oji-orb { position: absolute; border-radius: 50%; filter: blur(52px); opacity: .5; will-change: transform; }
+.oji-orb-1 { width: 42vmax; height: 42vmax; top: -12vmax; right: -8vmax; background: radial-gradient(circle, rgba(255,138,76,.55), transparent 70%); animation: oji-drift1 28s ease-in-out infinite alternate; }
+.oji-orb-2 { width: 38vmax; height: 38vmax; bottom: -10vmax; left: -6vmax; background: radial-gradient(circle, rgba(232,121,249,.5), transparent 70%); animation: oji-drift2 34s ease-in-out infinite alternate; }
+.oji-orb-3 { width: 30vmax; height: 30vmax; top: 32%; left: 36%; background: radial-gradient(circle, rgba(124,58,237,.4), transparent 70%); animation: oji-drift3 24s ease-in-out infinite alternate; }
 .oji-grid {
   position: absolute; inset: 0;
-  background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
-  background-size: 46px 46px;
-  -webkit-mask-image: radial-gradient(circle at 50% 35%, #000 25%, transparent 72%);
-  mask-image: radial-gradient(circle at 50% 35%, #000 25%, transparent 72%);
+  background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(circle at 50% 35%, #000 22%, transparent 70%);
+  mask-image: radial-gradient(circle at 50% 35%, #000 22%, transparent 70%);
 }
 .oji-cursor-glow {
-  position: absolute; top: 0; left: 0; width: 420px; height: 420px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(34,211,238,.16), transparent 65%);
+  position: absolute; top: 0; left: 0; width: 440px; height: 440px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,138,76,.16), transparent 65%);
   will-change: transform; transform: translate(-50%, -50%);
 }
 
-@keyframes oji-drift1 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(-12vmax,10vmax) scale(1.15); } }
-@keyframes oji-drift2 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(10vmax,-8vmax) scale(1.12); } }
-@keyframes oji-drift3 { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(8vmax,6vmax) scale(1.22); } 100% { transform: translate(-6vmax,-4vmax) scale(1); } }
+@keyframes oji-spin { to { transform: rotate(360deg); } }
+@keyframes oji-drift1 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(-10vmax,8vmax) scale(1.12); } }
+@keyframes oji-drift2 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(8vmax,-7vmax) scale(1.1); } }
+@keyframes oji-drift3 { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(7vmax,5vmax) scale(1.18); } 100% { transform: translate(-5vmax,-3vmax) scale(1); } }
 
 img, iframe, video, canvas { max-width: 100%; }
 
@@ -69,9 +80,9 @@ img, iframe, video, canvas { max-width: 100%; }
 
 /* Glass surfaces */
 .oji-glass {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--oji-border);
 }
 
@@ -84,12 +95,12 @@ img, iframe, video, canvas { max-width: 100%; }
   animation: oji-shimmer 6s linear infinite;
 }
 
-.oji-glow { box-shadow: 0 0 0 1px var(--oji-border), 0 24px 60px -22px rgba(34, 211, 238, 0.45); }
+.oji-glow { box-shadow: 0 0 0 1px var(--oji-border), 0 26px 64px -22px rgba(255, 138, 76, 0.45); }
 
 /* Entrance + idle animations */
 @keyframes oji-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @keyframes oji-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-@keyframes oji-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(34,211,238,.5); } 70% { box-shadow: 0 0 0 10px rgba(34,211,238,0); } 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); } }
+@keyframes oji-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255,138,76,.5); } 70% { box-shadow: 0 0 0 10px rgba(255,138,76,0); } 100% { box-shadow: 0 0 0 0 rgba(255,138,76,0); } }
 @keyframes oji-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* Reveal-on-scroll (works on every device via IntersectionObserver) */
@@ -115,14 +126,14 @@ img, iframe, video, canvas { max-width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
   .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo, .oji-drawer,
-  .oji-orb-1, .oji-orb-2, .oji-orb-3, .oji-gradient-text { animation: none !important; }
+  .oji-orb-1, .oji-orb-2, .oji-orb-3, .oji-mesh, .oji-gradient-text { animation: none !important; }
   .oji-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--oji-bg); }
 ::-webkit-scrollbar-thumb { background: var(--oji-border); border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: #34467a; }
+::-webkit-scrollbar-thumb:hover { background: #4a3768; }
 
 select { color: var(--oji-text); }
 select option { background: var(--oji-surface-2); color: var(--oji-text); }

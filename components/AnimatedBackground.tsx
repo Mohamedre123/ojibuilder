@@ -50,6 +50,7 @@ export default function AnimatedBackground() {
 
   return (
     <div aria-hidden className="oji-bg-fx">
+      <div className="oji-mesh" />
       <div className="oji-orb oji-orb-1" />
       <div className="oji-orb oji-orb-2" />
       <div className="oji-orb oji-orb-3" />
