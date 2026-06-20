@@ -274,36 +274,22 @@ export default function Home() {
             <button key={c} onClick={() => setCat(c)} className={`px-3 py-1.5 rounded-full text-xs transition ${cat === c ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white"}`}>{c}</button>
           ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {shown.map((t) => (
             <button
               key={t.id}
               onClick={() => go({ prompt: t.prompt, lang })}
-              className="group relative text-right rounded-2xl oji-glass overflow-hidden transition duration-300 hover:-translate-y-1.5 hover:border-[var(--oji-primary)] hover:shadow-[0_22px_45px_-20px_rgba(255,138,76,.55)]"
+              className="group flex items-center gap-3 sm:gap-4 w-full text-right rounded-2xl oji-glass p-3 sm:p-4 transition duration-300 hover:-translate-y-0.5 hover:border-[var(--oji-primary)] hover:shadow-[0_16px_36px_-18px_rgba(255,138,76,.55)]"
             >
-              {/* browser top bar */}
-              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--oji-border)] bg-[var(--oji-surface-2)]">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
-                <span className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
-                <span dir="ltr" className="ms-auto text-[10px] text-[var(--oji-muted)] truncate max-w-[55%]">{t.id}.oji</span>
-              </div>
-              {/* preview body */}
-              <div className="relative h-28 flex items-center justify-center bg-gradient-to-br from-[var(--oji-surface-2)] to-[var(--oji-surface)] overflow-hidden">
-                <div className="text-5xl group-hover:scale-110 transition duration-300">{t.emoji}</div>
-                <div className="absolute bottom-2.5 inset-x-3 space-y-1 opacity-40">
-                  <div className="h-1.5 rounded bg-white/15 w-2/3 ms-auto" />
-                  <div className="h-1.5 rounded bg-white/10 w-1/2 ms-auto" />
+              <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br from-[var(--oji-primary)]/30 to-[var(--oji-accent)]/20 border border-[var(--oji-border)] group-hover:scale-105 transition">{t.emoji}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold truncate group-hover:text-[var(--oji-primary)] transition">{t.title}</span>
+                  <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</span>
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center bg-[var(--oji-bg)]/75 opacity-0 group-hover:opacity-100 transition duration-300">
-                  <span className="px-4 py-2 rounded-xl bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm">أنشئ موقعك ✨</span>
-                </div>
+                <p className="text-xs text-[var(--oji-muted)] truncate mt-1">{t.prompt}</p>
               </div>
-              {/* footer */}
-              <div className="px-4 py-3 flex items-center justify-between gap-2">
-                <div className="font-bold text-sm truncate">{t.title}</div>
-                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</span>
-              </div>
+              <span className="shrink-0 text-lg text-[var(--oji-muted)] group-hover:text-[var(--oji-primary)] group-hover:translate-x-[-4px] transition">←</span>
             </button>
           ))}
         </div>
