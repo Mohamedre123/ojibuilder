@@ -32,10 +32,18 @@ body { position: relative; overflow-x: hidden; }
 /* ===== Uniform animated background — even everywhere, no seam ===== */
 .oji-bg-fx {
   position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none;
-  /* uniform low-contrast plum gradient — no bright spots, so no visible seam */
-  background: linear-gradient(135deg, #0b0712, #120b1c, #0d0a17, #110a1b, #0b0712);
-  background-size: 300% 300%;
-  animation: oji-bgmove 28s ease-in-out infinite;
+  /* evenly-distributed soft glows across the WHOLE viewport — every region
+     stays lit (no plain/separate area), with a gentle shared drift. */
+  background:
+    radial-gradient(45% 45% at 15% 16%, rgba(255,138,76,.12), transparent 70%),
+    radial-gradient(45% 45% at 85% 20%, rgba(232,121,249,.11), transparent 70%),
+    radial-gradient(50% 50% at 50% 50%, rgba(124,58,237,.10), transparent 75%),
+    radial-gradient(45% 45% at 16% 84%, rgba(232,121,249,.10), transparent 70%),
+    radial-gradient(45% 45% at 84% 82%, rgba(255,138,76,.11), transparent 70%),
+    var(--oji-bg);
+  background-size: 150% 150%, 150% 150%, 160% 160%, 150% 150%, 150% 150%, auto;
+  background-position: 50% 50%;
+  animation: oji-bgmove 26s ease-in-out infinite;
 }
 .oji-skel {
   background: linear-gradient(90deg, rgba(255,255,255,.05), rgba(255,255,255,.13), rgba(255,255,255,.05));
@@ -54,9 +62,9 @@ body { position: relative; overflow-x: hidden; }
 }
 
 @keyframes oji-bgmove {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0%   { background-position: 44% 44%; }
+  50%  { background-position: 56% 56%; }
+  100% { background-position: 44% 44%; }
 }
 
 img, iframe, video, canvas { max-width: 100%; }
