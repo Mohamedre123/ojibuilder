@@ -29,33 +29,32 @@ html, body {
 
 body { position: relative; overflow-x: hidden; }
 
-/* ===== Lightweight, uniform animated background (no heavy blur/mask) ===== */
+/* ===== Uniform animated background — even everywhere, no seam ===== */
 .oji-bg-fx {
   position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none;
-  /* uniform base tint so there is never a visible seam between regions */
   background:
-    radial-gradient(60% 50% at 80% 12%, rgba(255,138,76,.12), transparent 70%),
-    radial-gradient(55% 50% at 15% 85%, rgba(232,121,249,.11), transparent 70%),
-    radial-gradient(50% 45% at 50% 50%, rgba(124,58,237,.07), transparent 75%);
+    radial-gradient(130% 90% at 50% -20%, rgba(124,58,237,.12), transparent 55%),
+    linear-gradient(125deg, #0b0712, #150d22, #0c0918, #130b1e, #0b0712);
+  background-size: 100% 100%, 320% 320%;
+  background-position: 50% 0%, 0% 50%;
+  animation: oji-bgmove 30s ease-in-out infinite;
 }
-.oji-orb { position: absolute; border-radius: 50%; filter: blur(46px); opacity: .35; will-change: transform; }
-.oji-orb-1 { width: 34vmax; height: 34vmax; top: -8vmax; right: -6vmax; background: radial-gradient(circle, rgba(255,138,76,.5), transparent 70%); animation: oji-drift1 30s ease-in-out infinite alternate; }
-.oji-orb-2 { width: 30vmax; height: 30vmax; bottom: -8vmax; left: -6vmax; background: radial-gradient(circle, rgba(232,121,249,.45), transparent 70%); animation: oji-drift2 36s ease-in-out infinite alternate; }
-.oji-orb-3 { width: 26vmax; height: 26vmax; top: 40%; left: 42%; background: radial-gradient(circle, rgba(124,58,237,.4), transparent 70%); animation: oji-drift3 26s ease-in-out infinite alternate; }
 .oji-grid {
-  position: absolute; inset: 0; opacity: .5;
-  background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
-  background-size: 52px 52px;
+  position: absolute; inset: 0; opacity: .45;
+  background-image: linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+  background-size: 54px 54px;
 }
 .oji-cursor-glow {
-  position: absolute; top: 0; left: 0; width: 420px; height: 420px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,138,76,.14), transparent 65%);
+  position: absolute; top: 0; left: 0; width: 440px; height: 440px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,138,76,.13), transparent 65%);
   will-change: transform; transform: translate(-50%, -50%);
 }
 
-@keyframes oji-drift1 { 0% { transform: translate(0,0); } 100% { transform: translate(-8vmax,6vmax); } }
-@keyframes oji-drift2 { 0% { transform: translate(0,0); } 100% { transform: translate(6vmax,-5vmax); } }
-@keyframes oji-drift3 { 0% { transform: translate(0,0); } 50% { transform: translate(5vmax,4vmax); } 100% { transform: translate(-4vmax,-2vmax); } }
+@keyframes oji-bgmove {
+  0%   { background-position: 50% 0%, 0% 50%; }
+  50%  { background-position: 50% 0%, 100% 50%; }
+  100% { background-position: 50% 0%, 0% 50%; }
+}
 
 img, iframe, video, canvas { max-width: 100%; }
 
@@ -108,7 +107,7 @@ img, iframe, video, canvas { max-width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
   .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo, .oji-drawer,
-  .oji-orb-1, .oji-orb-2, .oji-orb-3, .oji-gradient-text { animation: none !important; }
+  .oji-bg-fx, .oji-gradient-text { animation: none !important; }
   .oji-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 

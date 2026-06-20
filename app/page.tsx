@@ -241,13 +241,30 @@ export default function Home() {
             <button
               key={t.id}
               onClick={() => go({ prompt: t.prompt, lang })}
-              className="group relative text-right rounded-2xl oji-glass p-5 overflow-hidden transition duration-300 hover:-translate-y-1.5 hover:border-[var(--oji-primary)] hover:shadow-[0_18px_40px_-18px_rgba(255,138,76,.5)]"
+              className="group relative text-right rounded-2xl oji-glass overflow-hidden transition duration-300 hover:-translate-y-1.5 hover:border-[var(--oji-primary)] hover:shadow-[0_22px_45px_-20px_rgba(255,138,76,.55)]"
             >
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-gradient-to-br from-[var(--oji-primary)]/10 to-transparent pointer-events-none" />
-              <div className="relative">
-                <div className="w-12 h-12 mb-3 rounded-xl flex items-center justify-center text-2xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] group-hover:border-[var(--oji-primary)] group-hover:scale-110 transition">{t.emoji}</div>
-                <div className="font-bold mb-1 group-hover:text-[var(--oji-primary)] transition">{t.title}</div>
-                <div className="text-[11px] inline-block px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</div>
+              {/* browser top bar */}
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--oji-border)] bg-[var(--oji-surface-2)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
+                <span className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
+                <span dir="ltr" className="ms-auto text-[10px] text-[var(--oji-muted)] truncate max-w-[55%]">{t.id}.oji</span>
+              </div>
+              {/* preview body */}
+              <div className="relative h-28 flex items-center justify-center bg-gradient-to-br from-[var(--oji-surface-2)] to-[var(--oji-surface)] overflow-hidden">
+                <div className="text-5xl group-hover:scale-110 transition duration-300">{t.emoji}</div>
+                <div className="absolute bottom-2.5 inset-x-3 space-y-1 opacity-40">
+                  <div className="h-1.5 rounded bg-white/15 w-2/3 ms-auto" />
+                  <div className="h-1.5 rounded bg-white/10 w-1/2 ms-auto" />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center bg-[var(--oji-bg)]/75 opacity-0 group-hover:opacity-100 transition duration-300">
+                  <span className="px-4 py-2 rounded-xl bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm">أنشئ موقعك ✨</span>
+                </div>
+              </div>
+              {/* footer */}
+              <div className="px-4 py-3 flex items-center justify-between gap-2">
+                <div className="font-bold text-sm truncate">{t.title}</div>
+                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</span>
               </div>
             </button>
           ))}
@@ -294,17 +311,24 @@ export default function Home() {
         </a>
       </section>
 
-      <section id="how" className="oji-reveal max-w-4xl mx-auto px-6 py-12">
-        <div className="grid sm:grid-cols-3 gap-6 text-center">
+      <section id="how" className="oji-reveal max-w-5xl mx-auto px-6 py-14">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center">كيف يعمل؟</h2>
+        <p className="text-[var(--oji-muted)] text-center mb-10">ثلاث خطوات بسيطة من الفكرة إلى موقع منشور.</p>
+        <div className="relative grid sm:grid-cols-3 gap-6">
+          {/* connecting line (desktop) */}
+          <div className="hidden sm:block absolute top-8 inset-x-[16%] h-px bg-gradient-to-l from-[var(--oji-primary)]/60 via-[var(--oji-accent)]/40 to-transparent" />
           {[
-            { n: "١", t: "صِف فكرتك", d: "نص، صورة، أو رابط موقع." },
-            { n: "٢", t: "يتولّد الموقع", d: "موقع كامل بصفحاته في دقائق." },
-            { n: "٣", t: "عدّل وانشر", d: "بالنقر أو بالأمر، ثم انشر أو نزّل." },
+            { n: "١", icon: "💡", t: "صِف فكرتك", d: "اكتب وصفًا، أو ارفع صورة تصميم، أو ضع رابط موقع." },
+            { n: "٢", icon: "⚡", t: "يتولّد الموقع", d: "موقع كامل بكل صفحاته ومحتواه في دقائق." },
+            { n: "٣", icon: "🚀", t: "عدّل وانشر", d: "بالنقر أو بالأمر، ثم انشر على دومينك أو نزّله." },
           ].map((s) => (
-            <div key={s.n} className="rounded-2xl oji-glass p-6">
-              <div className="w-10 h-10 rounded-full bg-[var(--oji-surface-2)] border border-[var(--oji-border)] flex items-center justify-center font-bold mx-auto mb-3 text-[var(--oji-primary)]">{s.n}</div>
-              <div className="font-bold mb-2">{s.t}</div>
-              <div className="text-sm text-[var(--oji-muted)]">{s.d}</div>
+            <div key={s.n} className="relative text-center">
+              <div className="relative z-10 w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] shadow-[0_14px_30px_-10px_rgba(255,138,76,.6)]">
+                {s.icon}
+                <span className="absolute -top-2 -start-2 w-7 h-7 rounded-full bg-[var(--oji-surface)] border border-[var(--oji-border)] flex items-center justify-center text-xs font-bold text-[var(--oji-primary)]">{s.n}</span>
+              </div>
+              <div className="font-bold text-lg mb-2">{s.t}</div>
+              <div className="text-sm text-[var(--oji-muted)] max-w-xs mx-auto">{s.d}</div>
             </div>
           ))}
         </div>
