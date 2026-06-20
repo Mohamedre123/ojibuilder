@@ -47,6 +47,12 @@ export default function Home() {
     if (seed.image) sessionStorage.setItem("oji:image", JSON.stringify(seed.image));
     else sessionStorage.removeItem("oji:image");
     sessionStorage.removeItem("oji:html");
+    // If accounts are enabled and the visitor is a guest, sign in first then
+    // return to the builder (the saved seed generates after login).
+    if (authEnabled && !user) {
+      router.push("/login?returnTo=/builder");
+      return;
+    }
     router.push("/builder");
   }
 
@@ -232,10 +238,17 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {shown.map((t) => (
-            <button key={t.id} onClick={() => go({ prompt: t.prompt, lang })} className="group text-right rounded-2xl oji-glass p-5 hover:border-[var(--oji-primary)] hover:-translate-y-1 transition">
-              <div className="text-3xl mb-3">{t.emoji}</div>
-              <div className="font-bold mb-1">{t.title}</div>
-              <div className="text-xs text-[var(--oji-muted)]">{t.category}</div>
+            <button
+              key={t.id}
+              onClick={() => go({ prompt: t.prompt, lang })}
+              className="group relative text-right rounded-2xl oji-glass p-5 overflow-hidden transition duration-300 hover:-translate-y-1.5 hover:border-[var(--oji-primary)] hover:shadow-[0_18px_40px_-18px_rgba(255,138,76,.5)]"
+            >
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-gradient-to-br from-[var(--oji-primary)]/10 to-transparent pointer-events-none" />
+              <div className="relative">
+                <div className="w-12 h-12 mb-3 rounded-xl flex items-center justify-center text-2xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] group-hover:border-[var(--oji-primary)] group-hover:scale-110 transition">{t.emoji}</div>
+                <div className="font-bold mb-1 group-hover:text-[var(--oji-primary)] transition">{t.title}</div>
+                <div className="text-[11px] inline-block px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</div>
+              </div>
             </button>
           ))}
         </div>
