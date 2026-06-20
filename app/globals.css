@@ -32,12 +32,15 @@ body { position: relative; overflow-x: hidden; }
 /* ===== Uniform animated background — even everywhere, no seam ===== */
 .oji-bg-fx {
   position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none;
-  background:
-    radial-gradient(130% 90% at 50% -20%, rgba(124,58,237,.12), transparent 55%),
-    linear-gradient(125deg, #0b0712, #150d22, #0c0918, #130b1e, #0b0712);
-  background-size: 100% 100%, 320% 320%;
-  background-position: 50% 0%, 0% 50%;
-  animation: oji-bgmove 30s ease-in-out infinite;
+  /* uniform low-contrast plum gradient — no bright spots, so no visible seam */
+  background: linear-gradient(135deg, #0b0712, #120b1c, #0d0a17, #110a1b, #0b0712);
+  background-size: 300% 300%;
+  animation: oji-bgmove 28s ease-in-out infinite;
+}
+.oji-skel {
+  background: linear-gradient(90deg, rgba(255,255,255,.05), rgba(255,255,255,.13), rgba(255,255,255,.05));
+  background-size: 200% 100%;
+  animation: oji-shimmer 2.2s linear infinite;
 }
 .oji-grid {
   position: absolute; inset: 0; opacity: .45;
@@ -51,9 +54,9 @@ body { position: relative; overflow-x: hidden; }
 }
 
 @keyframes oji-bgmove {
-  0%   { background-position: 50% 0%, 0% 50%; }
-  50%  { background-position: 50% 0%, 100% 50%; }
-  100% { background-position: 50% 0%, 0% 50%; }
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 img, iframe, video, canvas { max-width: 100%; }
@@ -107,7 +110,7 @@ img, iframe, video, canvas { max-width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
   .oji-up, .oji-up-2, .oji-up-3, .oji-float, .oji-pulse, .oji-promo, .oji-drawer,
-  .oji-bg-fx, .oji-gradient-text { animation: none !important; }
+  .oji-bg-fx, .oji-gradient-text, .oji-skel { animation: none !important; }
   .oji-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 

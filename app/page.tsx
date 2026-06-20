@@ -161,70 +161,108 @@ export default function Home() {
         </div>
       )}
 
-      <section className="max-w-3xl mx-auto px-6 pt-14 pb-12 text-center">
-        <div className="oji-up inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full oji-glass text-[var(--oji-muted)] mb-6">
-          <span className="w-2 h-2 rounded-full bg-[var(--oji-primary)] animate-pulse" />
-          مدعوم بأحدث نماذج الذكاء الاصطناعي من Claude
-        </div>
-        <h1 className="oji-up text-5xl sm:text-7xl font-extrabold leading-[1.1] mb-5">
-          اكتب فكرتك،<br className="sm:hidden" /> واحصل على <span className="oji-gradient-text">موقع كامل</span>
-        </h1>
-        <p className="oji-up-2 text-base sm:text-lg text-[var(--oji-muted)] mb-7 max-w-xl mx-auto">
-          من نص، أو صورة تصميم، أو رابط موقع قائم — ودع oji builder يبنيه ويتيح لك تعديل كل جزء.
-        </p>
+      <section className="max-w-6xl mx-auto px-6 pt-8 sm:pt-12 pb-10">
+        <div className="grid lg:grid-cols-2 gap-10 items-center">
+          {/* Text + command bar */}
+          <div className="text-center lg:text-right">
+            <div className="oji-up inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full oji-glass text-[var(--oji-muted)] mb-5">
+              <span className="w-2 h-2 rounded-full bg-[var(--oji-primary)] animate-pulse" /> مدعوم بأحدث نماذج Claude
+            </div>
+            <h1 className="oji-up text-4xl sm:text-6xl font-extrabold leading-[1.12] mb-4">
+              من فكرة إلى <span className="oji-gradient-text">موقع كامل</span> في دقائق
+            </h1>
+            <p className="oji-up-2 text-base sm:text-lg text-[var(--oji-muted)] mb-6 max-w-xl mx-auto lg:mx-0">
+              اكتب وصفًا، أو ارفع صورة، أو ضع رابطًا — و oji builder يبني موقعك بكل صفحاته، ويتيح لك تعديل كل جزء، ثم انشره على دومينك.
+            </p>
 
-        {/* Entry mode tabs */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-          {([["text", "✍️ من نص"], ["image", "🖼️ من صورة"], ["url", "🔗 من رابط"]] as [Entry, string][]).map(([k, label]) => (
-            <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>
-              {label}
-            </button>
-          ))}
-          <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs ms-2">
-            <button onClick={() => setLang("ar")} className={`px-2.5 py-1.5 ${lang === "ar" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>عربي</button>
-            <button onClick={() => setLang("en")} className={`px-2.5 py-1.5 ${lang === "en" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>EN</button>
+            {/* entry tabs + lang */}
+            <div className="oji-up-2 flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-3">
+              {([["text", "✍️ من نص"], ["image", "🖼️ من صورة"], ["url", "🔗 من رابط"]] as [Entry, string][]).map(([k, label]) => (
+                <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>{label}</button>
+              ))}
+              <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs ms-1">
+                <button onClick={() => setLang("ar")} className={`px-2.5 py-1.5 ${lang === "ar" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>عربي</button>
+                <button onClick={() => setLang("en")} className={`px-2.5 py-1.5 ${lang === "en" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>EN</button>
+              </div>
+            </div>
+
+            {/* model pills */}
+            <div className="oji-up-2 flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-4">
+              {MODELS.map((mo) => (
+                <button key={mo.id} onClick={() => pickModel(mo.id)} title={`$${mo.inPrice}/$${mo.outPrice} لكل مليون توكن`} className={`px-3 py-1.5 rounded-xl text-xs transition border ${model === mo.id ? "border-[var(--oji-primary)] bg-[var(--oji-primary)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)]"}`}>
+                  {mo.badge} {mo.label} · {mo.speed}
+                </button>
+              ))}
+            </div>
+
+            {/* prompt box */}
+            <div className="oji-up-3 oji-glow oji-glass rounded-2xl p-3 text-right">
+              {entry === "url" ? (
+                <div className="flex flex-col gap-2">
+                  <input value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" placeholder="https://example.com" className="w-full bg-transparent outline-none px-3 py-3 text-base placeholder:text-[var(--oji-muted)]" onKeyDown={(e) => e.key === "Enter" && launchUrl()} />
+                  <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                    <span className="text-xs text-[var(--oji-muted)]">{busy || "سنقرأ الموقع ونعيد بناءه"}</span>
+                    <button onClick={launchUrl} disabled={!url.trim() || !!busy} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] disabled:opacity-40 transition">ابنِ من الرابط 🔗</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) launchText(); }} placeholder={entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
+                  <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                    <span className="text-xs text-[var(--oji-muted)]">{entry === "image" ? "ارفع تصميمًا" : "Ctrl + Enter"}</span>
+                    {entry === "image" ? (
+                      <>
+                        <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
+                        <button onClick={() => fileRef.current?.click()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f] hover:brightness-110 transition">ارفع صورة وابنِ 🖼️</button>
+                      </>
+                    ) : (
+                      <button onClick={launchText} disabled={!prompt.trim()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] disabled:opacity-40 transition">ابنِ الموقع ✨</button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Animated faux-browser mockup (desktop) */}
+          <div className="oji-up-3 hidden lg:block relative">
+            <div className="oji-glass oji-float rounded-2xl overflow-hidden shadow-2xl">
+              <div className="flex items-center gap-1.5 px-3 py-2.5 border-b border-[var(--oji-border)] bg-[var(--oji-surface-2)]">
+                <span className="w-3 h-3 rounded-full bg-red-400/70" />
+                <span className="w-3 h-3 rounded-full bg-yellow-400/70" />
+                <span className="w-3 h-3 rounded-full bg-green-400/70" />
+                <span dir="ltr" className="ms-auto text-xs text-[var(--oji-muted)] px-3 py-0.5 rounded-md bg-[var(--oji-bg)]/60">yoursite.oji</span>
+              </div>
+              <div className="p-4 space-y-3 h-[340px] bg-gradient-to-br from-[var(--oji-surface)] to-[var(--oji-bg)]">
+                <div className="h-28 rounded-xl bg-gradient-to-l from-[var(--oji-primary)]/35 to-[var(--oji-accent)]/25 flex items-center justify-center">
+                  <div className="oji-skel h-4 w-1/2 rounded" />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="rounded-lg bg-[var(--oji-surface-2)] p-3 space-y-2">
+                      <div className="w-8 h-8 rounded-md bg-[var(--oji-primary)]/30" />
+                      <div className="oji-skel h-2.5 rounded w-full" />
+                      <div className="oji-skel h-2.5 rounded w-2/3" />
+                    </div>
+                  ))}
+                </div>
+                <div className="oji-skel h-3 rounded w-2/3 ms-auto" />
+                <div className="oji-skel h-3 rounded w-1/2 ms-auto" />
+                <div className="h-10 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] w-40 ms-auto" />
+              </div>
+            </div>
+            <div className="absolute -bottom-4 -start-4 oji-glass rounded-xl px-3 py-2 text-xs font-bold shadow-xl">⚡ تم البناء في 30 ثانية</div>
           </div>
         </div>
 
-        {/* Model picker with cost hint */}
-        <div className="oji-up-2 flex flex-wrap items-center justify-center gap-2 mb-4">
-          {MODELS.map((mo) => (
-            <button
-              key={mo.id}
-              onClick={() => pickModel(mo.id)}
-              title={`$${mo.inPrice}/$${mo.outPrice} لكل مليون توكن`}
-              className={`px-3 py-1.5 rounded-xl text-xs transition border ${model === mo.id ? "border-[var(--oji-primary)] bg-[var(--oji-primary)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)]"}`}
-            >
-              {mo.badge} {mo.label} · {mo.speed}
-            </button>
-          ))}
-        </div>
-
-        <div className="oji-up-3 oji-glow oji-glass rounded-2xl p-3 text-right">
-          {entry === "url" ? (
-            <div className="flex flex-col gap-2">
-              <input value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" placeholder="https://example.com" className="w-full bg-transparent outline-none px-3 py-3 text-base placeholder:text-[var(--oji-muted)]" onKeyDown={(e) => e.key === "Enter" && launchUrl()} />
-              <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-xs text-[var(--oji-muted)]">{busy || "سنقرأ الموقع ونعيد بناءه بشكل قابل للتعديل"}</span>
-                <button onClick={launchUrl} disabled={!url.trim() || !!busy} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] disabled:opacity-40 transition">ابنِ من الرابط 🔗</button>
-              </div>
+        {/* Stats strip */}
+        <div className="oji-reveal mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-4xl mx-auto">
+          {[["+16", "قالب جاهز"], ["4", "نماذج ذكاء"], ["دقائق", "لا أسابيع"], ["∞", "تعديلات حرة"]].map(([n, l]) => (
+            <div key={l} className="oji-glass rounded-2xl py-4 text-center">
+              <div className="text-2xl font-extrabold oji-gradient-text">{n}</div>
+              <div className="text-xs text-[var(--oji-muted)] mt-1">{l}</div>
             </div>
-          ) : (
-            <>
-              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) launchText(); }} placeholder={entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو والأسعار ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
-              <div className="flex items-center justify-between px-2 pb-1">
-                <span className="text-xs text-[var(--oji-muted)]">{entry === "image" ? "ارفع صورة تصميم أو سكرين‑شوت" : "Ctrl + Enter للإرسال"}</span>
-                {entry === "image" ? (
-                  <>
-                    <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
-                    <button onClick={() => fileRef.current?.click()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f] hover:brightness-110 transition">ارفع صورة وابنِ 🖼️</button>
-                  </>
-                ) : (
-                  <button onClick={launchText} disabled={!prompt.trim()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] disabled:opacity-40 transition">ابنِ الموقع ✨</button>
-                )}
-              </div>
-            </>
-          )}
+          ))}
         </div>
       </section>
 
@@ -267,6 +305,39 @@ export default function Home() {
                 <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</span>
               </div>
             </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Features bento */}
+      <section className="oji-reveal max-w-5xl mx-auto px-6 py-12">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center">كل ما تحتاجه لموقع احترافي</h2>
+        <p className="text-[var(--oji-muted)] text-center mb-8">منصة متكاملة من الفكرة حتى النشر.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="sm:col-span-2 lg:row-span-2 rounded-3xl oji-glass p-6 flex flex-col justify-between overflow-hidden relative">
+            <div className="absolute -top-10 -start-10 w-44 h-44 rounded-full bg-[var(--oji-primary)]/10 blur-2xl pointer-events-none" />
+            <div className="relative">
+              <div className="text-4xl mb-3">🌐</div>
+              <h3 className="text-xl font-extrabold mb-2">مواقع كاملة متعددة الصفحات</h3>
+              <p className="text-sm text-[var(--oji-muted)] max-w-md">مش صفحة واحدة — موقع كامل بصفحاته (الرئيسية، من نحن، الخدمات، تواصل...) بمحتوى وتصميم احترافي.</p>
+            </div>
+            <div className="relative mt-5 grid grid-cols-4 gap-2">
+              {["🏠", "ℹ️", "🛠️", "✉️"].map((e, i) => (
+                <div key={i} className="aspect-video rounded-lg bg-[var(--oji-surface-2)] flex items-center justify-center text-lg">{e}</div>
+              ))}
+            </div>
+          </div>
+          {[
+            { icon: "🖱️", t: "تعديل بصري بالنقر", d: "اضغط أي عنصر وعدّله بإيدك، أو اطلب من الذكاء تعديله." },
+            { icon: "🚀", t: "نشر فوري + دومين خاص", d: "انشر بضغطة، واربط دومينك مع شهادة SSL تلقائية." },
+            { icon: "🧠", t: "4 نماذج ذكاء", d: "اختر بين Haiku/Sonnet/Opus حسب السرعة والجودة، وشوف التكلفة." },
+            { icon: "💾", t: "حفظ وتصدير", d: "احفظ مشاريعك في حسابك، أو نزّل كود الموقع كامل." },
+          ].map((f) => (
+            <div key={f.t} className="rounded-3xl oji-glass p-6 hover:border-[var(--oji-primary)] transition">
+              <div className="text-3xl mb-3">{f.icon}</div>
+              <h3 className="font-bold mb-1.5">{f.t}</h3>
+              <p className="text-sm text-[var(--oji-muted)]">{f.d}</p>
+            </div>
           ))}
         </div>
       </section>
@@ -331,6 +402,19 @@ export default function Home() {
               <div className="text-sm text-[var(--oji-muted)] max-w-xs mx-auto">{s.d}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="oji-reveal max-w-5xl mx-auto px-6 py-12">
+        <div className="relative overflow-hidden rounded-3xl p-[1px] bg-gradient-to-l from-[var(--oji-primary)] via-[var(--oji-accent)] to-[var(--oji-primary)] oji-glow">
+          <div className="rounded-3xl bg-[var(--oji-surface)] px-6 py-12 text-center">
+            <h2 className="text-2xl sm:text-4xl font-extrabold mb-3">جاهز تبني موقعك دلوقتي؟</h2>
+            <p className="text-[var(--oji-muted)] mb-7 max-w-xl mx-auto">ابدأ مجانًا — اكتب فكرتك ودع الذكاء الاصطناعي يبني لك موقعًا كاملًا في دقائق.</p>
+            <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="px-8 py-3.5 rounded-2xl font-extrabold text-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] hover:scale-105 transition shadow-2xl">
+              ابدأ الآن ✨
+            </button>
+          </div>
         </div>
       </section>
 
