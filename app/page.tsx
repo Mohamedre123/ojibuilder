@@ -274,22 +274,17 @@ export default function Home() {
             <button key={c} onClick={() => setCat(c)} className={`px-3 py-1.5 rounded-full text-xs transition ${cat === c ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white"}`}>{c}</button>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {shown.map((t) => (
+        <div className="flex flex-wrap justify-center gap-4">
+          {shown.map((t, i) => (
             <button
               key={t.id}
               onClick={() => go({ prompt: t.prompt, lang })}
-              className="group flex items-center gap-3 sm:gap-4 w-full text-right rounded-2xl oji-glass p-3 sm:p-4 transition duration-300 hover:-translate-y-0.5 hover:border-[var(--oji-primary)] hover:shadow-[0_16px_36px_-18px_rgba(255,138,76,.55)]"
+              style={{ animationDelay: `${(i % 6) * 0.4}s` }}
+              className="oji-float group w-[140px] sm:w-[160px] rounded-2xl oji-glass p-4 text-center shadow-[0_18px_36px_-20px_rgba(0,0,0,.8)] transition-[box-shadow,border-color] duration-300 hover:border-[var(--oji-primary)] hover:shadow-[0_26px_50px_-16px_rgba(255,138,76,.65)]"
             >
-              <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br from-[var(--oji-primary)]/30 to-[var(--oji-accent)]/20 border border-[var(--oji-border)] group-hover:scale-105 transition">{t.emoji}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold truncate group-hover:text-[var(--oji-primary)] transition">{t.title}</span>
-                  <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)]">{t.category}</span>
-                </div>
-                <p className="text-xs text-[var(--oji-muted)] truncate mt-1">{t.prompt}</p>
-              </div>
-              <span className="shrink-0 text-lg text-[var(--oji-muted)] group-hover:text-[var(--oji-primary)] group-hover:translate-x-[-4px] transition">←</span>
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl flex items-center justify-center text-2xl bg-gradient-to-br from-[var(--oji-primary)]/30 to-[var(--oji-accent)]/20 border border-[var(--oji-border)] group-hover:scale-110 transition">{t.emoji}</div>
+              <div className="font-bold text-sm mb-2 truncate group-hover:text-[var(--oji-primary)] transition">{t.title}</div>
+              <div className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)] inline-block">{t.category}</div>
             </button>
           ))}
         </div>
