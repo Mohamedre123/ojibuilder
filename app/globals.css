@@ -20,8 +20,9 @@ html, body {
   background: var(--oji-bg);
   color: var(--oji-text);
   font-family: "Cairo", "Tajawal", system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.7;
+  word-spacing: 0.04em;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;

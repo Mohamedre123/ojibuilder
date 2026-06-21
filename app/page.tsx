@@ -274,20 +274,21 @@ export default function Home() {
             <button key={c} onClick={() => setCat(c)} className={`px-3 py-1.5 rounded-full text-xs transition ${cat === c ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white"}`}>{c}</button>
           ))}
         </div>
-        <div className="flex flex-wrap justify-center gap-4">
-          {shown.map((t, i) => (
+        {/* single-row horizontal carousel — swipe/scroll on every device */}
+        <div className="flex gap-3.5 overflow-x-auto scroll-touch snap-x snap-mandatory pt-2 pb-4 -mx-6 px-6">
+          {shown.map((t) => (
             <button
               key={t.id}
               onClick={() => go({ prompt: t.prompt, lang })}
-              style={{ animationDelay: `${(i % 6) * 0.4}s` }}
-              className="oji-float group w-[140px] sm:w-[160px] rounded-2xl oji-glass p-4 text-center shadow-[0_18px_36px_-20px_rgba(0,0,0,.8)] transition-[box-shadow,border-color] duration-300 hover:border-[var(--oji-primary)] hover:shadow-[0_26px_50px_-16px_rgba(255,138,76,.65)]"
+              className="group snap-start shrink-0 w-[136px] sm:w-[150px] rounded-2xl oji-glass p-3.5 text-center shadow-[0_18px_36px_-20px_rgba(0,0,0,.85)] transition-[box-shadow,border-color] duration-300 hover:border-[var(--oji-primary)] hover:shadow-[0_24px_48px_-16px_rgba(255,138,76,.6)]"
             >
-              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl flex items-center justify-center text-2xl bg-gradient-to-br from-[var(--oji-primary)]/30 to-[var(--oji-accent)]/20 border border-[var(--oji-border)] group-hover:scale-110 transition">{t.emoji}</div>
-              <div className="font-bold text-sm mb-2 truncate group-hover:text-[var(--oji-primary)] transition">{t.title}</div>
+              <div className="w-12 h-12 mx-auto mb-2.5 rounded-2xl flex items-center justify-center text-xl bg-gradient-to-br from-[var(--oji-primary)]/30 to-[var(--oji-accent)]/20 border border-[var(--oji-border)] group-hover:scale-110 transition">{t.emoji}</div>
+              <div className="font-bold text-[13px] mb-1.5 truncate group-hover:text-[var(--oji-primary)] transition">{t.title}</div>
               <div className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--oji-surface-2)] text-[var(--oji-muted)] inline-block">{t.category}</div>
             </button>
           ))}
         </div>
+        <p className="text-center text-xs text-[var(--oji-muted)] mt-1">اسحب يمينًا/يسارًا لرؤية كل القوالب ↔</p>
       </section>
 
       {/* Features bento */}
