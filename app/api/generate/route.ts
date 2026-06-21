@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/anthropic";
 import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
-import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT } from "@/lib/prompts";
+import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT, APP_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
 // 60s fits Vercel Hobby. On Pro you can raise this to 300 for richer output.
@@ -34,7 +34,12 @@ export async function POST(req: NextRequest) {
 
   let system: string;
   let userContent: string;
-  if (step === "page") {
+  let maxTokens = 12000;
+  if (step === "app") {
+    system = APP_SYSTEM_PROMPT;
+    userContent = `ابنِ تطبيقًا كاملًا (Next.js + Supabase) لهذه الفكرة:\n\n${prompt}${langNote}`;
+    maxTokens = 16000;
+  } else if (step === "page") {
     system = PAGE_SYSTEM_PROMPT;
     userContent = `وصف الموقع الأصلي: ${prompt}\n\nالهيكل الحالي للموقع (للاتساق في الألوان والطابع):\n${String(context || "").slice(0, LIMITS.MAX_HTML_CHARS)}\n\n---\nابنِ المحتوى الداخلي للصفحة ذات data-page="${pageId}" وعنوانها "${pageTitle}".${langNote}`;
   } else {
@@ -61,7 +66,7 @@ export async function POST(req: NextRequest) {
       try {
         const ai = client.messages.stream({
           model,
-          max_tokens: 12000,
+          max_tokens: maxTokens,
           system,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           messages: [{ role: "user", content: userBlocks as any }],

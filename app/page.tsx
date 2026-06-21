@@ -21,7 +21,19 @@ export default function Home() {
   const [cat, setCat] = useState("الكل");
   const [busy, setBusy] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [buildKind, setBuildKind] = useState<"site" | "app">("site");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function launchApp() {
+    if (!prompt.trim()) return;
+    sessionStorage.setItem("oji:prompt", prompt.trim());
+    sessionStorage.setItem("oji:lang", lang);
+    if (authEnabled && !user) {
+      router.push("/login?returnTo=/app");
+      return;
+    }
+    router.push("/app");
+  }
 
   function pickModel(id: string) {
     setModel(id);
@@ -175,11 +187,21 @@ export default function Home() {
               اكتب وصفًا، أو ارفع صورة، أو ضع رابطًا — و oji builder يبني موقعك بكل صفحاته، ويتيح لك تعديل كل جزء، ثم انشره على دومينك.
             </p>
 
-            {/* entry tabs + lang */}
+            {/* build kind: site vs app */}
+            <div className="oji-up-2 flex items-center justify-center lg:justify-start gap-2 mb-3">
+              <div className="flex rounded-xl border border-[var(--oji-border)] overflow-hidden">
+                <button onClick={() => setBuildKind("site")} className={`px-4 py-2 text-sm font-bold transition ${buildKind === "site" ? "bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f]" : "text-[var(--oji-muted)] hover:text-white"}`}>🌐 موقع</button>
+                <button onClick={() => { setBuildKind("app"); setEntry("text"); }} className={`px-4 py-2 text-sm font-bold transition ${buildKind === "app" ? "bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f]" : "text-[var(--oji-muted)] hover:text-white"}`}>📱 تطبيق</button>
+              </div>
+            </div>
+
+            {/* entry tabs (site only) + lang */}
             <div className="oji-up-2 flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-3">
-              {([["text", "✍️ من نص"], ["image", "🖼️ من صورة"], ["url", "🔗 من رابط"]] as [Entry, string][]).map(([k, label]) => (
-                <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>{label}</button>
-              ))}
+              {buildKind === "site" &&
+                ([["text", "✍️ من نص"], ["image", "🖼️ من صورة"], ["url", "🔗 من رابط"]] as [Entry, string][]).map(([k, label]) => (
+                  <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>{label}</button>
+                ))}
+              {buildKind === "app" && <span className="text-sm text-[var(--oji-muted)]">تطبيق كامل بقاعدة بيانات وتسجيل دخول 📱</span>}
               <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs ms-1">
                 <button onClick={() => setLang("ar")} className={`px-2.5 py-1.5 ${lang === "ar" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>عربي</button>
                 <button onClick={() => setLang("en")} className={`px-2.5 py-1.5 ${lang === "en" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>EN</button>
@@ -207,10 +229,12 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) launchText(); }} placeholder={entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
+                  <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (buildKind === "app" ? launchApp() : launchText()); }} placeholder={buildKind === "app" ? "صف تطبيقك: مثال: تطبيق لإدارة المهام لكل مستخدم مع تسجيل دخول..." : entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
                   <div className="flex items-center justify-between gap-2 px-2 pb-1">
-                    <span className="text-xs text-[var(--oji-muted)]">{entry === "image" ? "ارفع تصميمًا" : "Ctrl + Enter"}</span>
-                    {entry === "image" ? (
+                    <span className="text-xs text-[var(--oji-muted)]">{buildKind === "app" ? "Ctrl + Enter" : entry === "image" ? "ارفع تصميمًا" : "Ctrl + Enter"}</span>
+                    {buildKind === "app" ? (
+                      <button onClick={launchApp} disabled={!prompt.trim()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f] disabled:opacity-40 transition">أنشئ التطبيق 📱</button>
+                    ) : entry === "image" ? (
                       <>
                         <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
                         <button onClick={() => fileRef.current?.click()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f] hover:brightness-110 transition">ارفع صورة وابنِ 🖼️</button>

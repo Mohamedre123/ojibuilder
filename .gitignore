@@ -13,3 +13,6 @@ page*.html
 gen_*.html
 
 .published
+
+appgen*.txt
+body.json
