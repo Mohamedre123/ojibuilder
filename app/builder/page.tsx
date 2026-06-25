@@ -149,6 +149,18 @@ function mapError(e: unknown): string {
 
 const SWATCHES = ["#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#ef4444", "#10b981", "#0ea5e9"];
 
+// Smart next-step suggestions the agent offers after each build/edit.
+const SUGGESTIONS = [
+  "أضف قسم آراء العملاء",
+  "أضف صفحة الأسعار",
+  "أضف أنيميشن وحركة احترافية",
+  "أضف قسم الأسئلة الشائعة",
+  "حسّن الهيدر وأضف زر تواصل بارز",
+  "أضف معرض صور للأعمال",
+  "اجعل الألوان أكثر عصرية بتدرّجات",
+  "أضف نموذج تواصل في صفحة جديدة",
+];
+
 // ---- component -------------------------------------------------------------
 
 export default function Builder() {
@@ -163,6 +175,7 @@ export default function Builder() {
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [tab, setTab] = useState<Tab>("preview");
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [editDoc, setEditDoc] = useState("");
@@ -489,6 +502,12 @@ export default function Builder() {
     }
     setMessages((m) => [...m, { role: "user", text: selected ? `🎯 (على العنصر المحدد) ${text}` : text }]);
     runEdit(instruction);
+  }
+
+  function applySuggestion(text: string) {
+    if (loading || !html) return;
+    setMessages((m) => [...m, { role: "user", text }]);
+    runEdit(text);
   }
 
   function updateCode(value: string) {
@@ -831,6 +850,19 @@ export default function Builder() {
           )}
 
           <div className="p-3 border-t border-[var(--oji-border)]">
+            {/* agent suggestions for the next step */}
+            {html && !loading && !selected && (
+              <div className="mb-2">
+                <div className="text-[11px] text-[var(--oji-muted)] mb-1.5">💡 اقتراحات لتحسين موقعك:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTIONS.slice(0, 4).map((s) => (
+                    <button key={s} onClick={() => applySuggestion(s)} className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)] transition">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {selected && (
               <div className="flex items-center justify-between mb-2 px-2 py-1.5 rounded-lg bg-[var(--oji-accent)]/15 border border-[var(--oji-accent)]/40 text-xs">
                 <span>🎯 التعديل على: &lt;{selected.tag.toLowerCase()}&gt;</span>
@@ -855,15 +887,29 @@ export default function Builder() {
               </button>
             ))}
             {editMode && tab === "preview" && (
-              <span className="ms-auto text-xs text-[var(--oji-accent)]">وضع التعديل اليدوي — انقر على أي عنصر</span>
+              <span className="text-xs text-[var(--oji-accent)] truncate">وضع التعديل — انقر على أي عنصر</span>
+            )}
+            {tab === "preview" && (
+              <div className="ms-auto flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-sm shrink-0">
+                <button onClick={() => setDevice("desktop")} title="كمبيوتر" className={`px-2.5 py-1 ${device === "desktop" ? "bg-[var(--oji-surface-2)]" : "text-[var(--oji-muted)] hover:text-white"}`}>🖥️</button>
+                <button onClick={() => setDevice("phone")} title="فون" className={`px-2.5 py-1 ${device === "phone" ? "bg-[var(--oji-surface-2)]" : "text-[var(--oji-muted)] hover:text-white"}`}>📱</button>
+              </div>
             )}
           </div>
           <div className="flex-1 min-h-0">
             {tab === "preview" ? (
-              editMode ? (
-                <iframe ref={iframeRef} title="editor" srcDoc={editDoc} className="w-full h-full bg-white" sandbox="allow-scripts allow-forms" />
-              ) : previewHtml ? (
-                <iframe title="preview" srcDoc={previewHtml} className="w-full h-full bg-white" sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" />
+              (editMode ? editDoc : previewHtml) ? (
+                <div className={device === "phone" ? "h-full flex justify-center p-3 overflow-auto scroll-touch" : "h-full"}>
+                  <iframe
+                    ref={editMode ? iframeRef : undefined}
+                    key={editMode ? "editor" : "preview"}
+                    title="preview"
+                    srcDoc={editMode ? editDoc : previewHtml}
+                    sandbox="allow-scripts allow-forms"
+                    referrerPolicy={editMode ? undefined : "no-referrer"}
+                    className={`bg-white ${device === "phone" ? "w-[390px] max-w-full h-full rounded-[2rem] border-4 border-[var(--oji-surface-2)] shadow-2xl" : "w-full h-full"}`}
+                  />
+                </div>
               ) : (
                 <div className="h-full flex items-center justify-center text-[var(--oji-muted)]">{loading ? "جارٍ بناء موقعك..." : "لا يوجد محتوى بعد"}</div>
               )

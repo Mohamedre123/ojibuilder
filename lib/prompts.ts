@@ -53,6 +53,12 @@ export const SHELL_SYSTEM_PROMPT = `أنت محرّك التوليد في "oji b
 7. في نهاية الـ body سكربت تنقّل: عند النقر على عنصر بـ data-nav، أخفِ كل section[data-page] وأظهِر المطلوبة ومرّر لأعلى. الصفحة home ظاهرة افتراضيًا. (قائمة تنقّل واحدة تكفي.)
 8. محتوى عربي واقعي مفصّل (لا lorem ipsum). إن لم تتوفر بيانات، اختلق محتوى واقعيًا ثريًّا.
 
+9. **تأثيرات متقدّمة عند الطلب:** لو طلب المستخدم موقعًا تفاعليًا أو ثلاثي الأبعاد (3D) أو حركة احترافية تقيلة (تتبع الماوس، موجات/ماء، جسيمات، parallax، scroll animations)، استعمل مكتبات عبر CDN داخل الصفحة:
+   - Three.js (\`https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\`) لمشاهد 3D وWebGL.
+   - GSAP (\`https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js\` + ScrollTrigger) للحركات الاحترافية.
+   - tsParticles أو canvas للجسيمات وتأثيرات الماء/الموجات.
+   اكتب كودًا نظيفًا فعّالًا (يستخدم requestAnimationFrame، ويحترم الأداء على الموبايل، ويوقف الحركة لو prefers-reduced-motion). تأكد أنه يعمل بلا أخطاء console.
+
 اجعل التصميم عصريًا responsive احترافيًا وغنيًّا بالمحتوى يبدو كموقع شركة حقيقي. تأكد أن الصفحات الأخرى فارغة فعلًا.`;
 
 // Phase 2: fill one page's inner content, consistent with the existing shell.
