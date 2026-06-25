@@ -132,6 +132,28 @@ export default function AppBuilder() {
     }
   }
 
+  async function openLive() {
+    if (!files.length) return;
+    try {
+      const sdk = (await import("@stackblitz/sdk")).default;
+      const fileMap: Record<string, string> = {};
+      for (const f of files) fileMap[f.path] = f.content;
+      if (!fileMap["package.json"]) {
+        fileMap["package.json"] = JSON.stringify(
+          { name: "oji-app", scripts: { dev: "next dev", build: "next build", start: "next start" }, dependencies: { next: "latest", react: "latest", "react-dom": "latest" } },
+          null,
+          2
+        );
+      }
+      sdk.openProject(
+        { title: "oji app", description: ideaRef.current, template: "node", files: fileMap },
+        { newWindow: true }
+      );
+    } catch {
+      setError("تعذّر فتح المعاينة المباشرة — جرّب تنزيل المشروع.");
+    }
+  }
+
   async function download() {
     if (!files.length || zipping) return;
     setZipping(true);
@@ -188,11 +210,16 @@ export default function AppBuilder() {
           </div>
 
           {!loading && (
-            <div className="text-center mb-8">
-              <button onClick={download} disabled={zipping} className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-extrabold text-[#06121f] text-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] hover:scale-105 transition shadow-2xl disabled:opacity-50">
-                {zipping ? "...جارٍ التجهيز" : "⬇️ تنزيل المشروع (ZIP)"}
-              </button>
-              <p className="text-xs text-[var(--oji-muted)] mt-2">يحتوي على كل الملفات + ملف SETUP بالخطوات</p>
+            <div className="text-center mb-8 flex flex-col items-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
+                <button onClick={download} disabled={zipping} className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-extrabold text-[#06121f] bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] hover:scale-105 transition shadow-2xl disabled:opacity-50">
+                  {zipping ? "...جارٍ التجهيز" : "⬇️ تنزيل المشروع (ZIP)"}
+                </button>
+                <button onClick={openLive} className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-extrabold text-white bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] hover:scale-105 transition shadow-2xl">
+                  ▶️ تشغيل مباشر
+                </button>
+              </div>
+              <p className="text-xs text-[var(--oji-muted)]">التنزيل: كل الملفات + SETUP. التشغيل المباشر يفتح المشروع حيًّا في StackBlitz (الأفضل على متصفح كمبيوتر).</p>
             </div>
           )}
         </>

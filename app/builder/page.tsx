@@ -114,6 +114,11 @@ const EDITOR_RUNTIME = `
     var b=node.querySelector('#__oji_edit_js'); if(b)b.remove();
   }
   function docAttrs(){ var el=document.documentElement,s=''; for(var i=0;i<el.attributes.length;i++){var at=el.attributes[i]; s+=' '+at.name+'="'+at.value+'"';} return s; }
+  window.__ojiRules = window.__ojiRules || {};
+  (function initRules(){ var s=document.getElementById('__oji_resp'); if(!s)return; var re=/\\[data-oji-el="([^"]+)"\\]\\{([^:]+):([^!]+?) !important\\}/g; var m; while(m=re.exec(s.textContent||'')){ window.__ojiRules[m[1].trim()+'|'+m[2].trim()]={k:m[1].trim(),p:m[2].trim(),v:m[3].trim()}; } })();
+  function ensureResp(){ var s=document.getElementById('__oji_resp'); if(!s){ s=document.createElement('style'); s.id='__oji_resp'; document.head.appendChild(s);} return s; }
+  function elKey(el){ var k=el.getAttribute('data-oji-el'); if(!k){ k='x'+(window.__ojiK=(window.__ojiK||0)+1); el.setAttribute('data-oji-el',k);} return k; }
+  function applyResp(el,prop,val){ var key=elKey(el); window.__ojiRules[key+'|'+prop]={k:key,p:prop,v:val}; var css='@media (max-width:640px){'; for(var id in window.__ojiRules){ var r=window.__ojiRules[id]; css+='[data-oji-el="'+r.k+'"]{'+r.p+':'+r.v+' !important}'; } css+='}'; ensureResp().textContent=css; }
   function sync(){
     var c=document.documentElement.cloneNode(true); clean(c);
     var html='<!DOCTYPE html>\\n<html'+docAttrs()+'>'+c.innerHTML+'</html>';
@@ -124,7 +129,8 @@ const EDITOR_RUNTIME = `
     if(d.type==='delete'&&sel){ sel.remove(); sel=null; sync(); }
     if(d.type==='replaceImg'&&sel&&sel.tagName==='IMG'){ sel.src=d.url; sync(); }
     if(d.type==='insertImg'){ var img=document.createElement('img'); img.src=d.url; img.alt=''; img.style.maxWidth='100%'; img.style.borderRadius='12px'; (sel||document.body).appendChild(img); sync(); }
-    if(d.type==='style'&&sel){ try{ sel.style.setProperty(d.prop, d.value, 'important'); }catch(e){} sync(); }
+    if(d.type==='style'&&sel){ if(d.scope==='phone'){ applyResp(sel,d.prop,d.value); } else { try{ sel.style.setProperty(d.prop, d.value, 'important'); }catch(e){} } sync(); }
+    if(d.type==='font'&&sel){ var cur=parseFloat(getComputedStyle(sel).fontSize)||16; var ns=Math.max(8,Math.min(120,cur+d.delta)); if(d.scope==='phone'){ applyResp(sel,'font-size',ns+'px'); } else { sel.style.setProperty('font-size',ns+'px','important'); } sync(); }
     if(d.type==='toggleClass'&&sel){ d.cls.split(' ').forEach(function(c){ if(c) sel.classList.toggle(c); }); sync(); }
   });
 })();
@@ -182,8 +188,10 @@ export default function Builder() {
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<number, string>>({});
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [chatMode, setChatMode] = useState<"edit" | "chat">("edit");
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
+  const [editScope, setEditScope] = useState<"all" | "phone">("all");
   const [editDoc, setEditDoc] = useState("");
   const [selected, setSelected] = useState<Selected | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -562,6 +570,60 @@ export default function Builder() {
     runEdit(text);
   }
 
+  function onSend() {
+    if (chatMode === "chat") {
+      const t = input.trim();
+      if (!t || loading) return;
+      setInput("");
+      sendChat(t);
+    } else {
+      sendEdit();
+    }
+  }
+
+  async function sendChat(text: string) {
+    setMessages((m) => [...m, { role: "user", text }]);
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    setLoading(true);
+    setError("");
+    try {
+      const history = messages.slice(-8).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, html: htmlRef.current, history, model }),
+        signal: ac.signal,
+      });
+      if (!res.ok || !res.body) {
+        const d = await res.json().catch(() => ({ error: `فشل الطلب (${res.status})` }));
+        throw new Error(d.error || `فشل الطلب (${res.status})`);
+      }
+      setMessages((m) => [...m, { role: "system", text: "..." }]);
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const clean = buf.replace(/<!--OJI_(ERROR|USAGE):[\s\S]*?-->/g, "").trim();
+        setMessages((m) => {
+          const c = [...m];
+          if (c.length) c[c.length - 1] = { role: "system", text: clean || "..." };
+          return c;
+        });
+      }
+      const errMatch = buf.match(/<!--OJI_ERROR:([\s\S]*?)-->/);
+      if (errMatch) throw new Error(errMatch[1]);
+    } catch (e) {
+      setError(mapError(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function fetchSuggestions() {
     if (loadingSuggest || !html) return;
     setLoadingSuggest(true);
@@ -621,7 +683,10 @@ export default function Builder() {
     if (url) iframePost({ type: "insertImg", url });
   }
   function styleSelected(prop: string, value: string) {
-    iframePost({ type: "style", prop, value });
+    iframePost({ type: "style", prop, value, scope: editScope });
+  }
+  function changeFont(delta: number) {
+    iframePost({ type: "font", delta, scope: editScope });
   }
   function onEditFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -925,6 +990,13 @@ export default function Builder() {
                     <button onClick={deleteSelected} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-red-500 hover:text-red-300 transition">🗑 حذف</button>
                     <button onClick={replaceImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🔗 صورة برابط</button>
                   </div>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-[11px] text-[var(--oji-muted)]">نطاق التعديل:</span>
+                    <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-[11px]">
+                      <button onClick={() => setEditScope("all")} className={`px-2.5 py-1 ${editScope === "all" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>🖥️ الكل</button>
+                      <button onClick={() => setEditScope("phone")} className={`px-2.5 py-1 ${editScope === "phone" ? "bg-[var(--oji-accent)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>📱 الفون فقط</button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs cursor-pointer">
                       لون النص
@@ -934,6 +1006,13 @@ export default function Builder() {
                       لون الخلفية
                       <input type="color" onChange={(e) => styleSelected("background-color", e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0" />
                     </label>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs">
+                    <span>حجم الخط</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => changeFont(-2)} className="w-7 h-7 rounded bg-[var(--oji-surface-2)] hover:text-white">A-</button>
+                      <button onClick={() => changeFont(2)} className="w-7 h-7 rounded bg-[var(--oji-surface-2)] hover:text-white font-bold">A+</button>
+                    </div>
                   </div>
                   <div className="text-[11px] text-[var(--oji-muted)] pt-1">👁️ الظهور حسب الجهاز:</div>
                   <div className="grid grid-cols-2 gap-2">
@@ -974,10 +1053,15 @@ export default function Builder() {
                 <button onClick={() => setSelected(null)} className="hover:text-white">✕</button>
               </div>
             )}
+            {/* edit vs discuss mode */}
+            <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs mb-2 w-max">
+              <button onClick={() => setChatMode("edit")} className={`px-3 py-1.5 ${chatMode === "edit" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>✏️ تعديل</button>
+              <button onClick={() => setChatMode("chat")} className={`px-3 py-1.5 ${chatMode === "chat" ? "bg-[var(--oji-accent)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>💬 نقاش</button>
+            </div>
             <div className="rounded-xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] p-2">
-              <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendEdit(); } }} placeholder={selected ? "اطلب تعديل العنصر المحدد بالذكاء..." : "اطلب تعديلًا: «غيّر الألوان»، «أضف صفحة أسعار»، «أضف لوجو»..."} className="w-full h-16 bg-transparent resize-none outline-none px-2 py-1 text-sm placeholder:text-[var(--oji-muted)]" />
-              <button onClick={sendEdit} disabled={loading || !input.trim() || !html} className="w-full mt-1 py-2 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">
-                {selected ? "عدّل المحدد بالذكاء" : "إرسال التعديل"}
+              <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }} placeholder={chatMode === "chat" ? "ناقش أو اسأل: «إيه أحسن ألوان لموقع مطعم؟»، «اقترحلي أقسام»..." : selected ? "اطلب تعديل العنصر المحدد بالذكاء..." : "اطلب تعديلًا: «غيّر الألوان»، «أضف صفحة أسعار»، «أضف لوجو»..."} className="w-full h-16 bg-transparent resize-none outline-none px-2 py-1 text-sm placeholder:text-[var(--oji-muted)]" />
+              <button onClick={onSend} disabled={loading || !input.trim() || (chatMode === "edit" && !html)} className={`w-full mt-1 py-2 rounded-lg font-bold text-sm disabled:opacity-40 transition text-[#06121f] ${chatMode === "chat" ? "bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff]" : "bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)]"}`}>
+                {chatMode === "chat" ? "إرسال 💬" : selected ? "عدّل المحدد بالذكاء" : "إرسال التعديل"}
               </button>
             </div>
           </div>
