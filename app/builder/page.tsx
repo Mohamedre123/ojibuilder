@@ -125,6 +125,7 @@ const EDITOR_RUNTIME = `
     if(d.type==='replaceImg'&&sel&&sel.tagName==='IMG'){ sel.src=d.url; sync(); }
     if(d.type==='insertImg'){ var img=document.createElement('img'); img.src=d.url; img.alt=''; img.style.maxWidth='100%'; img.style.borderRadius='12px'; (sel||document.body).appendChild(img); sync(); }
     if(d.type==='style'&&sel){ try{ sel.style.setProperty(d.prop, d.value, 'important'); }catch(e){} sync(); }
+    if(d.type==='toggleClass'&&sel){ d.cls.split(' ').forEach(function(c){ if(c) sel.classList.toggle(c); }); sync(); }
   });
 })();
 </script>
@@ -179,6 +180,8 @@ export default function Builder() {
   const [asking, setAsking] = useState(false);
   const [clarifyQs, setClarifyQs] = useState<string[]>([]);
   const [clarifyAnswers, setClarifyAnswers] = useState<Record<number, string>>({});
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [editDoc, setEditDoc] = useState("");
@@ -559,6 +562,29 @@ export default function Builder() {
     runEdit(text);
   }
 
+  async function fetchSuggestions() {
+    if (loadingSuggest || !html) return;
+    setLoadingSuggest(true);
+    try {
+      const res = await fetch("/api/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: htmlRef.current, model }),
+      });
+      const data = await res.json().catch(() => ({ suggestions: [] }));
+      if (Array.isArray(data.suggestions) && data.suggestions.length) setAiSuggestions(data.suggestions);
+    } catch {
+      /* keep static suggestions */
+    } finally {
+      setLoadingSuggest(false);
+    }
+  }
+
+  // Device-specific visibility for the selected element (phone vs desktop).
+  function toggleDeviceClass(cls: string) {
+    iframePost({ type: "toggleClass", cls });
+  }
+
   function updateCode(value: string) {
     setHtml(value);
     setPreviewHtml(value);
@@ -909,6 +935,11 @@ export default function Builder() {
                       <input type="color" onChange={(e) => styleSelected("background-color", e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0" />
                     </label>
                   </div>
+                  <div className="text-[11px] text-[var(--oji-muted)] pt-1">👁️ الظهور حسب الجهاز:</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => toggleDeviceClass("max-sm:hidden")} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-accent)] transition">📱 إخفاء على الفون</button>
+                    <button onClick={() => toggleDeviceClass("sm:hidden")} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-accent)] transition">🖥️ إخفاء على الكمبيوتر</button>
+                  </div>
                 </>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -922,10 +953,15 @@ export default function Builder() {
             {/* agent suggestions for the next step */}
             {html && !loading && !selected && (
               <div className="mb-2">
-                <div className="text-[11px] text-[var(--oji-muted)] mb-1.5">💡 اقتراحات لتحسين موقعك:</div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-[var(--oji-muted)]">💡 اقتراحات لتحسين موقعك:</span>
+                  <button onClick={fetchSuggestions} disabled={loadingSuggest} className="text-[10px] px-2 py-0.5 rounded-full border border-[var(--oji-accent)]/50 text-[var(--oji-accent)] hover:bg-[var(--oji-accent)]/10 transition disabled:opacity-50">
+                    {loadingSuggest ? "..." : "✨ اقتراحات ذكية"}
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {SUGGESTIONS.slice(0, 4).map((s) => (
-                    <button key={s} onClick={() => applySuggestion(s)} className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)] transition">
+                  {(aiSuggestions.length ? aiSuggestions : SUGGESTIONS).slice(0, 5).map((s) => (
+                    <button key={s} onClick={() => applySuggestion(s)} className="text-[11px] px-2.5 py-1 rounded-full border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)] transition text-right">
                       {s}
                     </button>
                   ))}
