@@ -176,6 +176,9 @@ export default function Builder() {
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [tab, setTab] = useState<Tab>("preview");
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const [asking, setAsking] = useState(false);
+  const [clarifyQs, setClarifyQs] = useState<string[]>([]);
+  const [clarifyAnswers, setClarifyAnswers] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [editDoc, setEditDoc] = useState("");
@@ -320,9 +323,55 @@ export default function Builder() {
     const lang = sessionStorage.getItem("oji:lang") || "ar";
     seedRef.current = { prompt, image, lang };
     setMessages([{ role: "user", text: image ? `🖼️ بناء من صورة — ${prompt}` : prompt }]);
-    generateSite();
+    // For image-based builds, skip clarification (the image carries the intent).
+    if (image) generateSite();
+    else startClarify(prompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function startClarify(idea: string) {
+    setAsking(true);
+    try {
+      const res = await fetch("/api/clarify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: idea, model }),
+      });
+      const data = await res.json().catch(() => ({ questions: [] }));
+      const qs: string[] = Array.isArray(data.questions) ? data.questions.slice(0, 3) : [];
+      if (qs.length) {
+        setClarifyQs(qs);
+        setMessages((m) => [...m, { role: "system", text: "قبل ما أبدأ، جاوبني على دي عشان أطلّعلك أحسن نتيجة (أو تخطّاها):" }]);
+      } else {
+        setAsking(false);
+        generateSite();
+      }
+    } catch {
+      setAsking(false);
+      generateSite();
+    }
+  }
+
+  function submitClarify() {
+    const qs = clarifyQs;
+    const extras = qs
+      .map((q, i) => ({ q, a: (clarifyAnswers[i] || "").trim() }))
+      .filter((x) => x.a);
+    if (extras.length) {
+      const detail = extras.map((x) => `- ${x.q} ${x.a}`).join("\n");
+      seedRef.current.prompt = `${seedRef.current.prompt}\n\nتفاصيل إضافية من العميل:\n${detail}`;
+      setMessages((m) => [...m, { role: "user", text: extras.map((x) => x.a).join(" — ") }]);
+    }
+    setAsking(false);
+    setClarifyQs([]);
+    generateSite();
+  }
+
+  function skipClarify() {
+    setAsking(false);
+    setClarifyQs([]);
+    generateSite();
+  }
 
   async function streamText(
     body: Record<string, unknown>,
@@ -802,6 +851,26 @@ export default function Builder() {
               <div className="rounded-2xl px-4 py-3 text-sm bg-red-500/10 border border-red-500/40 text-red-300 space-y-2">
                 <div>{error}</div>
                 <button onClick={retry} disabled={loading} className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-100 text-xs font-bold transition">إعادة المحاولة ↻</button>
+              </div>
+            )}
+            {asking && clarifyQs.length > 0 && (
+              <div className="rounded-2xl px-3 py-3 bg-[var(--oji-accent)]/10 border border-[var(--oji-accent)]/30 space-y-3">
+                {clarifyQs.map((q, i) => (
+                  <div key={i}>
+                    <div className="text-xs mb-1">{q}</div>
+                    <input
+                      value={clarifyAnswers[i] || ""}
+                      onChange={(e) => setClarifyAnswers((a) => ({ ...a, [i]: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitClarify(); }}
+                      className="w-full rounded-lg bg-[var(--oji-surface-2)] border border-[var(--oji-border)] px-3 py-2 text-sm outline-none focus:border-[var(--oji-accent)]"
+                      placeholder="إجابتك (اختياري)"
+                    />
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <button onClick={submitClarify} className="flex-1 py-2 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm">ابدأ البناء 🚀</button>
+                  <button onClick={skipClarify} className="px-4 py-2 rounded-lg border border-[var(--oji-border)] text-sm hover:text-white">تخطّي</button>
+                </div>
               </div>
             )}
             <div ref={chatEndRef} />
