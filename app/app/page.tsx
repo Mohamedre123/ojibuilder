@@ -218,6 +218,9 @@ export default function AppBuilder() {
                 <button onClick={openLive} className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-extrabold text-white bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] hover:scale-105 transition shadow-2xl">
                   ▶️ تشغيل مباشر
                 </button>
+                <button onClick={() => router.push("/apk")} className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-bold border border-[var(--oji-border)] hover:border-[var(--oji-accent)] transition">
+                  📦 تحويل لـ APK
+                </button>
               </div>
               <p className="text-xs text-[var(--oji-muted)]">التنزيل: كل الملفات + SETUP. التشغيل المباشر يفتح المشروع حيًّا في StackBlitz (الأفضل على متصفح كمبيوتر).</p>
             </div>

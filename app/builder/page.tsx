@@ -792,6 +792,15 @@ export default function Builder() {
     }
   }
 
+  function toApk() {
+    if (publishedIdRef.current) {
+      router.push(`/apk?url=${encodeURIComponent(window.location.origin + "/s/" + publishedIdRef.current)}`);
+    } else {
+      alert("انشر الموقع أولًا بزر «🚀 نشر» ليصبح له رابط، أو أدخل الرابط يدويًا في صفحة التحويل.");
+      router.push("/apk");
+    }
+  }
+
   async function publish() {
     if (!html || publishing) return;
     if (!requireLogin()) return;
@@ -913,6 +922,7 @@ export default function Builder() {
           <button onClick={connectDomain} disabled={!html || loading || linking} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {linking ? "...ربط" : "🌐 دومين"}
           </button>
+          <button onClick={toApk} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-accent)] disabled:opacity-40 transition whitespace-nowrap">📦 APK</button>
           <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">معاينة ↗</button>
           <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">تنزيل</button>
         </div>
