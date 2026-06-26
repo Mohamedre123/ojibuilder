@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
 import { useUser } from "@/lib/supabase/useUser";
 import { getSupabase } from "@/lib/supabase/client";
+import VoiceButton from "@/components/VoiceButton";
 
 interface ChatMsg {
   role: "user" | "system";
@@ -792,13 +793,30 @@ export default function Builder() {
     }
   }
 
-  function toApk() {
-    if (publishedIdRef.current) {
-      router.push(`/apk?url=${encodeURIComponent(window.location.origin + "/s/" + publishedIdRef.current)}`);
-    } else {
-      alert("انشر الموقع أولًا بزر «🚀 نشر» ليصبح له رابط، أو أدخل الرابط يدويًا في صفحة التحويل.");
-      router.push("/apk");
+  async function toApk() {
+    if (!html || publishing) return;
+    // Auto-publish silently so the client doesn't do any step — one click → APK.
+    let url = publishedIdRef.current ? window.location.origin + "/s/" + publishedIdRef.current : "";
+    if (!url) {
+      setPublishing(true);
+      try {
+        const res = await fetch("/api/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ html: cleanHtml(html) }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "تعذّر التجهيز");
+        publishedIdRef.current = data.id;
+        url = window.location.origin + data.path;
+      } catch (e) {
+        setError(mapError(e));
+        setPublishing(false);
+        return;
+      }
+      setPublishing(false);
     }
+    router.push(`/apk?url=${encodeURIComponent(url)}`);
   }
 
   async function publish() {
@@ -922,7 +940,7 @@ export default function Builder() {
           <button onClick={connectDomain} disabled={!html || loading || linking} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {linking ? "...ربط" : "🌐 دومين"}
           </button>
-          <button onClick={toApk} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-accent)] disabled:opacity-40 transition whitespace-nowrap">📦 APK</button>
+          <button onClick={toApk} disabled={!html || publishing} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-accent)] disabled:opacity-40 transition whitespace-nowrap">📦 APK</button>
           <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">معاينة ↗</button>
           <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">تنزيل</button>
         </div>
@@ -1070,9 +1088,12 @@ export default function Builder() {
             </div>
             <div className="rounded-xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] p-2">
               <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }} placeholder={chatMode === "chat" ? "ناقش أو اسأل: «إيه أحسن ألوان لموقع مطعم؟»، «اقترحلي أقسام»..." : selected ? "اطلب تعديل العنصر المحدد بالذكاء..." : "اطلب تعديلًا: «غيّر الألوان»، «أضف صفحة أسعار»، «أضف لوجو»..."} className="w-full h-16 bg-transparent resize-none outline-none px-2 py-1 text-sm placeholder:text-[var(--oji-muted)]" />
-              <button onClick={onSend} disabled={loading || !input.trim() || (chatMode === "edit" && !html)} className={`w-full mt-1 py-2 rounded-lg font-bold text-sm disabled:opacity-40 transition text-[#06121f] ${chatMode === "chat" ? "bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff]" : "bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)]"}`}>
-                {chatMode === "chat" ? "إرسال 💬" : selected ? "عدّل المحدد بالذكاء" : "إرسال التعديل"}
-              </button>
+              <div className="flex items-center gap-2 mt-1">
+                <VoiceButton onText={(t) => setInput((p) => (p ? p + " " + t : t))} />
+                <button onClick={onSend} disabled={loading || !input.trim() || (chatMode === "edit" && !html)} className={`flex-1 py-2 rounded-lg font-bold text-sm disabled:opacity-40 transition text-[#06121f] ${chatMode === "chat" ? "bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff]" : "bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)]"}`}>
+                  {chatMode === "chat" ? "إرسال 💬" : selected ? "عدّل المحدد بالذكاء" : "إرسال التعديل"}
+                </button>
+              </div>
             </div>
           </div>
         </aside>

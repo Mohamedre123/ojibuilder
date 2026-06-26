@@ -7,6 +7,7 @@ import { MODELS, DEFAULT_MODEL } from "@/lib/models";
 import { useUser } from "@/lib/supabase/useUser";
 import { getSupabase } from "@/lib/supabase/client";
 import Footer from "@/components/Footer";
+import VoiceButton from "@/components/VoiceButton";
 
 type Entry = "text" | "image" | "url";
 
@@ -23,6 +24,34 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [buildKind, setBuildKind] = useState<"site" | "app">("site");
   const fileRef = useRef<HTMLInputElement>(null);
+  const siteFileRef = useRef<HTMLInputElement>(null);
+
+  function onSiteFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert("الملف كبير جدًا (الحد 3 ميجابايت).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      if (!/<html|<!doctype|<body|<div/i.test(text)) {
+        alert("الملف لا يبدو ملف HTML صالح.");
+        return;
+      }
+      sessionStorage.setItem("oji:html", text);
+      sessionStorage.removeItem("oji:prompt");
+      sessionStorage.removeItem("oji:image");
+      if (authEnabled && !user) {
+        router.push("/login?returnTo=/builder");
+        return;
+      }
+      router.push("/builder");
+    };
+    reader.readAsText(file);
+  }
 
   function launchApp() {
     if (!prompt.trim()) return;
@@ -202,6 +231,12 @@ export default function Home() {
                   <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>{label}</button>
                 ))}
               {buildKind === "app" && <span className="text-sm text-[var(--oji-muted)]">تطبيق كامل بقاعدة بيانات وتسجيل دخول 📱</span>}
+              {buildKind === "site" && (
+                <>
+                  <input ref={siteFileRef} type="file" accept=".html,.htm,text/html" onChange={onSiteFile} className="hidden" />
+                  <button onClick={() => siteFileRef.current?.click()} className="px-4 py-1.5 rounded-lg text-sm text-[var(--oji-muted)] hover:text-white border border-dashed border-[var(--oji-border)] hover:border-[var(--oji-primary)] transition">📂 ارفع موقعك</button>
+                </>
+              )}
               <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-xs ms-1">
                 <button onClick={() => setLang("ar")} className={`px-2.5 py-1.5 ${lang === "ar" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>عربي</button>
                 <button onClick={() => setLang("en")} className={`px-2.5 py-1.5 ${lang === "en" ? "bg-[var(--oji-primary)] text-[#06121f] font-bold" : "text-[var(--oji-muted)]"}`}>EN</button>
@@ -231,7 +266,10 @@ export default function Home() {
                 <>
                   <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (buildKind === "app" ? launchApp() : launchText()); }} placeholder={buildKind === "app" ? "صف تطبيقك: مثال: تطبيق لإدارة المهام لكل مستخدم مع تسجيل دخول..." : entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
                   <div className="flex items-center justify-between gap-2 px-2 pb-1">
-                    <span className="text-xs text-[var(--oji-muted)]">{buildKind === "app" ? "Ctrl + Enter" : entry === "image" ? "ارفع تصميمًا" : "Ctrl + Enter"}</span>
+                    <div className="flex items-center gap-2">
+                      <VoiceButton onText={(t) => setPrompt((p) => (p ? p + " " + t : t))} />
+                      <span className="text-xs text-[var(--oji-muted)] hidden sm:inline">{buildKind === "app" ? "Ctrl + Enter" : entry === "image" ? "ارفع تصميمًا" : "Ctrl + Enter"}</span>
+                    </div>
                     {buildKind === "app" ? (
                       <button onClick={launchApp} disabled={!prompt.trim()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f] disabled:opacity-40 transition">أنشئ التطبيق 📱</button>
                     ) : entry === "image" ? (
