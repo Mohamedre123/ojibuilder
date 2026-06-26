@@ -135,6 +135,7 @@ const EDITOR_RUNTIME = `
     if(d.type==='style'&&sel){ if(d.scope==='phone'){ applyResp(sel,d.prop,d.value); } else { try{ sel.style.setProperty(d.prop, d.value, 'important'); }catch(e){} } sync(); }
     if(d.type==='font'&&sel){ var cur=parseFloat(getComputedStyle(sel).fontSize)||16; var ns=Math.max(8,Math.min(120,cur+d.delta)); if(d.scope==='phone'){ applyResp(sel,'font-size',ns+'px'); } else { sel.style.setProperty('font-size',ns+'px','important'); } sync(); }
     if(d.type==='toggleClass'&&sel){ d.cls.split(' ').forEach(function(c){ if(c) sel.classList.toggle(c); }); sync(); }
+    if(d.type==='setLink'&&sel){ var a; if(sel.tagName==='A'){ a=sel; } else { a=document.createElement('a'); sel.parentNode.insertBefore(a,sel); a.appendChild(sel); } a.setAttribute('href',d.href); a.setAttribute('target','_blank'); a.setAttribute('rel','noopener noreferrer'); a.style.textDecoration='none'; a.style.color='inherit'; a.style.cursor='pointer'; sel=a; parent.postMessage({__oji:1,type:'select',tag:a.tagName,html:a.outerHTML},'*'); sync(); }
   });
 })();
 </script>
@@ -707,6 +708,28 @@ export default function Builder() {
     const url = window.prompt("رابط الصورة المراد إضافتها:");
     if (url) iframePost({ type: "insertImg", url });
   }
+  function buildHref(v: string): string {
+    const s = v.trim();
+    if (/^(https?:|mailto:|tel:|sms:)/i.test(s)) return s;
+    if (/^wa\.me\//i.test(s)) return "https://" + s;
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "mailto:" + s;
+    const digits = s.replace(/[^\d]/g, "");
+    // A bare phone number → WhatsApp (the common case for a "تواصل/اطلب" button).
+    if (digits.length >= 7 && /^[\d\s+()-]+$/.test(s)) return "https://wa.me/" + digits;
+    if (/^www\./i.test(s)) return "https://" + s;
+    return "https://" + s;
+  }
+  function setLink() {
+    if (!selected) return;
+    const raw = window.prompt(
+      "وجهة الزر عند الضغط:\n• رقم واتساب بالكود الدولي (مثال: 201200026457)\n• رابط كامل: https://...\n• بريد: name@site.com\n• اتصال: tel:+201200026457",
+      ""
+    );
+    if (raw == null) return;
+    const v = raw.trim();
+    if (!v) return;
+    iframePost({ type: "setLink", href: buildHref(v) });
+  }
   function styleSelected(prop: string, value: string) {
     iframePost({ type: "style", prop, value, scope: editScope });
   }
@@ -1050,8 +1073,9 @@ export default function Builder() {
                 <>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={deleteSelected} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-red-500 hover:text-red-300 transition">🗑 حذف</button>
-                    <button onClick={replaceImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🔗 صورة برابط</button>
+                    <button onClick={replaceImageUrl} className="px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition">🖼 صورة برابط</button>
                   </div>
+                  <button onClick={setLink} className="w-full px-2 py-1.5 rounded-lg border border-[var(--oji-border)] text-xs hover:border-[var(--oji-primary)] transition flex items-center justify-center gap-1">🔗 اربط الزر برابط (واتساب / اتصال / صفحة)</button>
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <span className="text-[11px] text-[var(--oji-muted)]">نطاق التعديل:</span>
                     <div className="flex rounded-lg border border-[var(--oji-border)] overflow-hidden text-[11px]">
