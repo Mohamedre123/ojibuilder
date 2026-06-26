@@ -40,20 +40,30 @@ export const SHELL_SYSTEM_PROMPT = `أنت محرّك التوليد في "oji b
 أخرج **مستند HTML واحد كامل فقط** يبدأ بـ <!DOCTYPE html> وينتهي بـ </html>. لا شرح، لا أي نص خارج الكود، لا علامات markdown.
 
 المواصفات:
-0. SEO + PWA: ضع <title> مناسبًا، <meta name="description">، <meta name="viewport">، و<meta property="og:title">. أضِف favicon كرمز emoji عبر: <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>"> (اختر رمزًا مناسبًا للمجال). وللتثبيت كتطبيق (APK/PWA) أضِف: <meta name="theme-color" content="#لون"> و<meta name="apple-mobile-web-app-capable" content="yes"> و<meta name="mobile-web-app-capable" content="yes">.
-1. <html lang="ar" dir="rtl"> ، خط Cairo من Google Fonts ، Tailwind عبر <script src="https://cdn.tailwindcss.com"></script>.
-2. أضِف <style id="theme"> فيه متغيّرات ألوان CSS: --c-primary و --c-accent و --c-bg (اختر لوحة أنيقة مناسبة للمجال).
-   **مهم جدًا:** استعمل هذه المتغيّرات في **كل** العناصر الملوّنة عبر أصناف Tailwind العشوائية مثل: bg-[var(--c-primary)] و text-[var(--c-primary)] و border-[var(--c-primary)] و hover:bg-[var(--c-accent)] — لا تستخدم ألوان Tailwind الثابتة (مثل bg-blue-600) للون الأساسي، حتى يتمكّن المستخدم من تغيير لون الموقع كله من مكان واحد.
-3. هيدر ثابت (sticky) فيه شعار نصّي + قائمة تنقّل. كل رابط بالصيغة: <a data-nav="ID" ...>العنوان</a>.
+0. **SEO كامل** داخل <head> (مهم جدًا لظهور الموقع في جوجل وعند المشاركة):
+   - <title> وصفي غني بالكلمات المفتاحية، و<meta name="description"> جذّاب (≤160 حرفًا)، و<meta name="keywords">، و<meta name="viewport" content="width=device-width, initial-scale=1">، و<meta charset="UTF-8">، و<link rel="canonical">.
+   - **Open Graph**: og:title, og:description, og:type="website", og:image (استخدم رابط صورة حقيقي للمجال), og:locale="ar_AR". و**Twitter Card**: twitter:card="summary_large_image", twitter:title, twitter:description, twitter:image.
+   - **بيانات منظّمة JSON-LD** في <script type="application/ld+json">: نوع Organization أو LocalBusiness (الاسم، الوصف، العنوان، الهاتف، ساعات العمل إن كان نشاطًا محليًا) — يحسّن الظهور في جوجل.
+   - favicon emoji عبر: <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>"> (اختر رمزًا مناسبًا للمجال).
+   - PWA: <meta name="theme-color" content="#لون">, <meta name="apple-mobile-web-app-capable" content="yes">, <meta name="mobile-web-app-capable" content="yes">.
+1. <html lang="ar" dir="rtl"> ، خط Cairo من Google Fonts ، Tailwind عبر <script src="https://cdn.tailwindcss.com"></script>. بعده مباشرة فعّل الوضع الليلي: <script>tailwind.config={darkMode:'class'}</script>. وأضِف **أيقونات احترافية** عبر Font Awesome: <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"> واستعمل <i class="fa-solid fa-..."></i> بدلًا من الإيموجي في كل المزايا والأزرار والأقسام.
+2. أضِف <style id="theme"> فيه متغيّرات ألوان CSS: --c-primary و --c-accent و --c-bg (اختر لوحة أنيقة متناسقة مناسبة للمجال).
+   **مهم جدًا:** استعمل هذه المتغيّرات في **كل** العناصر الملوّنة عبر أصناف Tailwind العشوائية مثل: bg-[var(--c-primary)] و text-[var(--c-primary)] و border-[var(--c-primary)] و hover:bg-[var(--c-accent)] — لا تستخدم ألوان Tailwind الثابتة (مثل bg-blue-600) للون الأساسي، حتى يتمكّن المستخدم من تغيير لون الموقع كله من مكان واحد. وفّر دعم الوضع الليلي بأصناف dark: على الخلفيات والنصوص الرئيسية.
+3. هيدر ثابت (sticky) فيه شعار نصّي + قائمة تنقّل + **زر تبديل الوضع الليلي/النهاري** (أيقونة شمس/قمر تبدّل صنف dark على <html> وتحفظه في localStorage). كل رابط تنقّل بالصيغة: <a data-nav="ID" ...>العنوان</a>.
 4. اختر **من 4 إلى 5 صفحات** مناسبة للمجال (مثل home, about, services, contact). ضع رابطًا لكل صفحة في القائمة.
-5. داخل <main>:
-   - <section data-page="home"> ... </section> = الصفحة الرئيسية **غنية ومكتملة**: hero قوي + **4 أقسام** متنوّعة (مثل: مزايا/خدمات بشبكة بطاقات، إحصائيات بأرقام، خطوات عمل أو آراء عملاء، ودعوة لإجراء). كل قسم بعنوان وفقرة وصفية وعناصر بصرية — محتوى حقيقي غني وليس سطورًا قليلة. (لا تتجاوز 4 أقسام في الرئيسية لتبقى سريعة.)
-   - لكل صفحة أخرى: <section data-page="ID" class="hidden"></section> **فارغة تمامًا** (مجرد placeholder — سيتم ملؤها لاحقًا). لا تكتب أي محتوى بداخلها.
-6. فوتر كامل (روابط + تواصل + حقوق).
-7. في نهاية الـ body سكربت تنقّل: عند النقر على عنصر بـ data-nav، أخفِ كل section[data-page] وأظهِر المطلوبة ومرّر لأعلى. الصفحة home ظاهرة افتراضيًا. (قائمة تنقّل واحدة تكفي.)
-8. محتوى عربي واقعي مفصّل (لا lorem ipsum). إن لم تتوفر بيانات، اختلق محتوى واقعيًا ثريًّا.
+5. **الصور**: استخدم **صور حقيقية مناسبة للمجال** عبر loremflickr بكلمات مفتاحية إنجليزية ورقم lock فريد لكل صورة لثباتها وتنوّعها: https://loremflickr.com/800/600/<keyword>?lock=<رقم> (مثل restaurant,food). للصور المجرّدة أو الخلفيات يمكن https://picsum.photos/seed/<كلمة>/1200/800. أعطِ كل <img> سمة alt وصفية (مهم للوصول و SEO) و loading="lazy".
+6. داخل <main>:
+   - <section data-page="home"> ... </section> = الصفحة الرئيسية **غنية ومكتملة**: hero قوي بصورة/تدرّج + **4 أقسام** متنوّعة عالية الجودة (اختر منها: مزايا/خدمات بشبكة بطاقات بأيقونات، **إحصائيات بأرقام بعدّاد متحرك**، **آراء عملاء (شهادات)**, **أسئلة شائعة بأكورديون**, معرض صور، خطوات عمل، ودعوة لإجراء). كل قسم بعنوان وفقرة وصفية ومحتوى حقيقي غني. (لا تتجاوز 4 أقسام في الرئيسية لتبقى سريعة.)
+   - لكل صفحة أخرى: <section data-page="ID" class="hidden"></section> **فارغة تمامًا** (placeholder — تُملأ لاحقًا). لا تكتب أي محتوى بداخلها.
+7. فوتر كامل (روابط + وسائل تواصل بأيقونات + حقوق + خريطة جوجل مضمّنة بـ <iframe> لو النشاط محلّي له عنوان).
+8. **نماذج تعمل فعلًا**: أي نموذج "تواصل/طلب/حجز/اشتراك" يجب أن يُرسل فعليًا، لا يكون شكليًا:
+   - **واتساب** (الأفضل): على <form> ضع onsubmit يمنع الإرسال الافتراضي، يجمع قيم الحقول في رسالة منسّقة، ثم يفتح https://wa.me/<الرقم بالكود الدولي بدون +>?text=<encodeURIComponent(الرسالة)>.
+   - **أو بريد بدون باكند** عبر FormSubmit: <form action="https://formsubmit.co/<البريد>" method="POST"> مع حقول name، وأضِف <input type="hidden" name="_captcha" value="false">.
+   - استخدم بيانات تواصل العميل المعطاة في الطلب (واتساب/بريد) إن وُجدت. إن لم تتوفر، ضع رقمًا/بريدًا واضحًا قابلًا للتعديل مع كومنت <!-- بدّل الرقم --> ونبّه المستخدم بصريًا بطريقة لطيفة.
+9. في نهاية الـ body سكربت تنقّل: عند النقر على عنصر بـ data-nav، أخفِ كل section[data-page] وأظهِر المطلوبة ومرّر لأعلى. الصفحة home ظاهرة افتراضيًا. أضِف أيضًا سكربت العدّادات المتحركة والأكورديون وزر الوضع الليلي. (كل التفاعلات بلا أخطاء console.)
+10. **محتوى عربي واقعي مفصّل** (لا lorem ipsum إطلاقًا) — أسماء أقسام وخدمات وأسعار وعناوين واقعية مناسبة للنشاط. **إمكانية وصول (a11y)**: تباين ألوان كافٍ، alt للصور، aria-label للأزرار الأيقونية، عناوين h1/h2 مرتّبة.
 
-9. **3D وWebGL وحركة عالمية المستوى — اختر أفضل تقنية تلقائيًا:** اختر أنسب الأدوات للمشروع بدون التقيّد بأسلوب واحد. لو الفكرة إبداعية أو غامرة أو ثلاثية الأبعاد، اصنع تجربة **بمستوى المواقع العالمية الحائزة على جوائز (Awwwards)**:
+11. **3D وWebGL وحركة عالمية المستوى — اختر أفضل تقنية تلقائيًا:** اختر أنسب الأدوات للمشروع بدون التقيّد بأسلوب واحد. لو الفكرة إبداعية أو غامرة أو ثلاثية الأبعاد، اصنع تجربة **بمستوى المواقع العالمية الحائزة على جوائز (Awwwards)**:
    - **Three.js** (\`https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\`) لمشاهد 3D/WebGL كاملة الشاشة: نماذج، إضاءة، ظلال، أجواء، تفاعل مع التمرير والماوس.
    - **GLSL shaders** (vertex/fragment) للتأثيرات المتقدّمة (ماء، موجات، دخان، تشوّه، gradient meshes).
    - **GSAP + ScrollTrigger** (\`https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js\`) للحركات السينمائية والتمرير القصصي (scroll-telling).
@@ -69,9 +79,11 @@ export const PAGE_SYSTEM_PROMPT = `أنت محرّك التوليد في "oji bu
 قواعد صارمة:
 1. أخرج **محتوى HTML الداخلي للصفحة فقط** (العناصر التي توضع داخل <section data-page="...">).
 2. لا تُخرج <!DOCTYPE> ولا <html> ولا <head> ولا وسم <section> نفسه ولا أي علامات markdown ولا أي شرح — العناصر الداخلية فقط.
-3. اجعلها **غنية: من 3 إلى 5 أقسام مكتملة** مناسبة لطبيعة الصفحة، كل قسم بعنوان وفقرات ومحتوى حقيقي مفصّل (بطاقات/شبكات/نماذج/إحصائيات حسب الصفحة) — وليست سطورًا قليلة.
-4. التزم بنفس ألوان الموقع وطابعه. استعمل نفس متغيّرات الألوان bg-[var(--c-primary)] و text-[var(--c-primary)] وأصناف Tailwind المستخدمة في الهيكل المرفق لضمان الاتساق التام.
-5. محتوى عربي واقعي مفصّل RTL، responsive، احترافي.`;
+3. اجعلها **غنية: من 3 إلى 5 أقسام مكتملة** مناسبة لطبيعة الصفحة، كل قسم بعنوان وفقرات ومحتوى حقيقي مفصّل (بطاقات/شبكات/نماذج/إحصائيات/شهادات/أسئلة شائعة حسب الصفحة) — وليست سطورًا قليلة.
+4. التزم بنفس ألوان الموقع وطابعه. استعمل نفس متغيّرات الألوان bg-[var(--c-primary)] و text-[var(--c-primary)] وأصناف Tailwind المستخدمة في الهيكل المرفق لضمان الاتساق التام، ودعم الوضع الليلي بأصناف dark:.
+5. **أيقونات احترافية** Font Awesome (<i class="fa-solid fa-..."></i>) بدل الإيموجي، و**صور حقيقية** عبر https://loremflickr.com/800/600/<keyword>?lock=<رقم> مع alt وصفي و loading="lazy".
+6. **صفحة التواصل**: اجعل النموذج **يعمل فعلًا** — واتساب (onsubmit يبني رابط https://wa.me/<الرقم>?text=...) أو بريد عبر https://formsubmit.co/<البريد>. استخدم بيانات التواصل المعطاة إن وُجدت، وإلا ضع قيمة قابلة للتعديل. أضِف خريطة جوجل <iframe> إن كان للنشاط عنوان.
+7. محتوى عربي واقعي مفصّل RTL، responsive، احترافي، مع إمكانية وصول (alt، aria-label، تباين كافٍ).`;
 
 export const EDIT_SYSTEM_PROMPT = `أنت محرّك التعديل في "oji builder".
 
@@ -83,6 +95,36 @@ export const EDIT_SYSTEM_PROMPT = `أنت محرّك التعديل في "oji bu
 3. لا تغيّر إلا ما طلبه المستخدم. حافظ على البنية والمحتوى والأقسام الأخرى دون مساس.
 4. حافظ على RTL والعربية وعمل الصفحة بدون أخطاء.
 5. إن كان الطلب غامضًا، طبّق أفضل تفسير منطقي له.`;
+
+// Design "vibe" presets the user can pick before building.
+export interface DesignTheme {
+  id: string;
+  title: string;
+  emoji: string;
+  directive: string;
+}
+
+export const DESIGN_THEMES: DesignTheme[] = [
+  { id: "auto", title: "تلقائي", emoji: "✨", directive: "" },
+  { id: "minimal", title: "بسيط أنيق", emoji: "⬜", directive: "الطابع المطلوب: Minimal — مساحات بيضاء واسعة، ألوان قليلة هادئة، خطوط رفيعة، تفاصيل بسيطة راقية، حدود ناعمة وظلال خفيفة." },
+  { id: "luxury", title: "فخم", emoji: "👑", directive: "الطابع المطلوب: Luxury فخامة راقية — لوحة داكنة مع لمسات ذهبية، تباين عالٍ، عناوين أنيقة (serif)، مسافات كريمة، إحساس بريميوم." },
+  { id: "bold", title: "جريء", emoji: "⚡", directive: "الطابع المطلوب: Bold — ألوان قوية متباينة، عناوين ضخمة عريضة، كتل لونية جريئة، حركات لافتة." },
+  { id: "playful", title: "مرِح", emoji: "🎈", directive: "الطابع المطلوب: Playful — ألوان مبهجة متعددة، أشكال دائرية ومنحنية، حركات لطيفة، إحساس ودود ومبهج." },
+  { id: "corporate", title: "مؤسسي", emoji: "🏢", directive: "الطابع المطلوب: Corporate — احترافية مؤسسية، لوحة أزرق/رمادي/أبيض، شبكات منظمة، وضوح وثقة." },
+];
+
+export function themeDirective(id?: string): string {
+  return DESIGN_THEMES.find((t) => t.id === id)?.directive || "";
+}
+
+export function contactDirective(c?: { whatsapp?: string; email?: string } | null): string {
+  if (!c) return "";
+  const parts: string[] = [];
+  if (c.whatsapp) parts.push(`رقم واتساب: ${c.whatsapp}`);
+  if (c.email) parts.push(`بريد إلكتروني: ${c.email}`);
+  if (!parts.length) return "";
+  return `بيانات تواصل العميل — اربط بها **كل** نماذج وأزرار التواصل/الطلب/الحجز فعليًا (واتساب عبر wa.me، والبريد عبر formsubmit.co): ${parts.join("، ")}.`;
+}
 
 // One-click starting points (the "templates" gallery).
 export interface Template {

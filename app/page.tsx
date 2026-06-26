@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { TEMPLATES } from "@/lib/prompts";
+import { TEMPLATES, DESIGN_THEMES } from "@/lib/prompts";
 import { MODELS, DEFAULT_MODEL } from "@/lib/models";
 import { useUser } from "@/lib/supabase/useUser";
 import { getSupabase } from "@/lib/supabase/client";
@@ -23,8 +23,21 @@ export default function Home() {
   const [busy, setBusy] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [buildKind, setBuildKind] = useState<"site" | "app">("site");
+  const [designTheme, setDesignTheme] = useState("auto");
+  const [showContact, setShowContact] = useState(false);
+  const [waNumber, setWaNumber] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const siteFileRef = useRef<HTMLInputElement>(null);
+
+  function persistOptions() {
+    sessionStorage.setItem("oji:theme", designTheme);
+    const contact: { whatsapp?: string; email?: string } = {};
+    if (waNumber.trim()) contact.whatsapp = waNumber.replace(/[^\d]/g, "");
+    if (contactEmail.trim()) contact.email = contactEmail.trim();
+    if (contact.whatsapp || contact.email) sessionStorage.setItem("oji:contact", JSON.stringify(contact));
+    else sessionStorage.removeItem("oji:contact");
+  }
 
   function onSiteFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -85,6 +98,7 @@ export default function Home() {
   function go(seed: { prompt: string; image?: { data: string; mediaType: string }; lang: "ar" | "en" }) {
     sessionStorage.setItem("oji:prompt", seed.prompt);
     sessionStorage.setItem("oji:lang", seed.lang);
+    persistOptions();
     if (seed.image) sessionStorage.setItem("oji:image", JSON.stringify(seed.image));
     else sessionStorage.removeItem("oji:image");
     sessionStorage.removeItem("oji:html");
@@ -251,6 +265,27 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {/* design vibe + working-forms contact (site only) */}
+            {buildKind === "site" && (
+              <div className="oji-up-2 mb-4 space-y-2">
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5">
+                  <span className="text-xs text-[var(--oji-muted)] ms-1">الطابع:</span>
+                  {DESIGN_THEMES.map((t) => (
+                    <button key={t.id} onClick={() => setDesignTheme(t.id)} className={`px-2.5 py-1 rounded-lg text-xs transition border ${designTheme === t.id ? "border-[var(--oji-accent)] bg-[var(--oji-accent)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white"}`}>{t.emoji} {t.title}</button>
+                  ))}
+                </div>
+                <div>
+                  <button onClick={() => setShowContact((v) => !v)} className="text-xs text-[var(--oji-muted)] hover:text-white transition ms-1">{showContact ? "▾" : "▸"} 📞 بيانات تواصل لتفعيل النماذج (اختياري)</button>
+                  {showContact && (
+                    <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                      <input value={waNumber} onChange={(e) => setWaNumber(e.target.value)} dir="ltr" placeholder="واتساب بالكود الدولي: 201200000000" className="flex-1 bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[var(--oji-primary)]" />
+                      <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} dir="ltr" placeholder="بريد لاستقبال الرسائل: you@site.com" className="flex-1 bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[var(--oji-primary)]" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* prompt box */}
             <div className="oji-up-3 oji-glow oji-glass rounded-2xl p-3 text-right">

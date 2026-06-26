@@ -231,7 +231,7 @@ export default function Builder() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lastReqRef = useRef<LastReq | null>(null);
-  const seedRef = useRef<{ prompt: string; image: ImageSeed | null; lang: string }>({ prompt: "", image: null, lang: "ar" });
+  const seedRef = useRef<{ prompt: string; image: ImageSeed | null; lang: string; theme?: string; contact?: { whatsapp?: string; email?: string } | null }>({ prompt: "", image: null, lang: "ar" });
   const htmlRef = useRef("");
   const histRef = useRef<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -356,7 +356,14 @@ export default function Builder() {
       image = null;
     }
     const lang = sessionStorage.getItem("oji:lang") || "ar";
-    seedRef.current = { prompt, image, lang };
+    const theme = sessionStorage.getItem("oji:theme") || "auto";
+    let contact: { whatsapp?: string; email?: string } | null = null;
+    try {
+      contact = JSON.parse(sessionStorage.getItem("oji:contact") || "null");
+    } catch {
+      contact = null;
+    }
+    seedRef.current = { prompt, image, lang, theme, contact };
     setMessages([{ role: "user", text: image ? `🖼️ بناء من صورة — ${prompt}` : prompt }]);
     // For image-based builds, skip clarification (the image carries the intent).
     if (image) generateSite();
@@ -455,7 +462,7 @@ export default function Builder() {
 
   async function generateSite() {
     lastReqRef.current = { kind: "site" };
-    const { prompt, image, lang } = seedRef.current;
+    const { prompt, image, lang, theme, contact } = seedRef.current;
     const ac = beginRequest();
     const timeout = setTimeout(() => ac.abort(), 290_000);
     try {
@@ -464,7 +471,7 @@ export default function Builder() {
       let totIn = 0;
       let totOut = 0;
       const shellRaw = await streamText(
-        { prompt, model, step: "shell", image, lang },
+        { prompt, model, step: "shell", image, lang, theme, contact },
         ac.signal,
         (buf) => {
           const c = cleanHtml(buf);
@@ -488,7 +495,7 @@ export default function Builder() {
       for (const pg of toFill) {
         setMessages((m) => [...m, { role: "system", text: `⏳ أبني صفحة: ${pg.title}...` }]);
         const innerRaw = await streamText(
-          { prompt, model, step: "page", pageId: pg.id, pageTitle: pg.title, context: current, lang },
+          { prompt, model, step: "page", pageId: pg.id, pageTitle: pg.title, context: current, lang, contact },
           ac.signal
         );
         const u = readUsage(innerRaw);

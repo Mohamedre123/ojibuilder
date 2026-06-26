@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/anthropic";
 import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
-import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT, APP_SYSTEM_PROMPT } from "@/lib/prompts";
+import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT, APP_SYSTEM_PROMPT, themeDirective, contactDirective } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
 // 60s fits Vercel Hobby. On Pro you can raise this to 300 for richer output.
@@ -24,13 +24,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang } = await req.json();
+  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang, theme, contact } = await req.json();
   if (!prompt || typeof prompt !== "string" || prompt.length > LIMITS.MAX_PROMPT_CHARS) {
     return NextResponse.json({ error: "الوصف مطلوب أو طويل جدًا" }, { status: 400 });
   }
 
   const model = MODEL_IDS.includes(reqModel) ? reqModel : DEFAULT_MODEL;
   const langNote = lang === "en" ? "\n\nاجعل كل محتوى الموقع باللغة الإنجليزية و<html lang=\"en\" dir=\"ltr\">." : "";
+  // Optional directives: design vibe + real contact info for working forms.
+  const themeNote = step === "shell" || step === undefined || (step !== "app" && step !== "page") ? (themeDirective(theme) ? "\n\n" + themeDirective(theme) : "") : "";
+  const contactNote = contactDirective(contact) ? "\n\n" + contactDirective(contact) : "";
 
   let system: string;
   let userContent: string;
@@ -41,12 +44,12 @@ export async function POST(req: NextRequest) {
     maxTokens = 16000;
   } else if (step === "page") {
     system = PAGE_SYSTEM_PROMPT;
-    userContent = `وصف الموقع الأصلي: ${prompt}\n\nالهيكل الحالي للموقع (للاتساق في الألوان والطابع):\n${String(context || "").slice(0, LIMITS.MAX_HTML_CHARS)}\n\n---\nابنِ المحتوى الداخلي للصفحة ذات data-page="${pageId}" وعنوانها "${pageTitle}".${langNote}`;
+    userContent = `وصف الموقع الأصلي: ${prompt}\n\nالهيكل الحالي للموقع (للاتساق في الألوان والطابع):\n${String(context || "").slice(0, LIMITS.MAX_HTML_CHARS)}\n\n---\nابنِ المحتوى الداخلي للصفحة ذات data-page="${pageId}" وعنوانها "${pageTitle}".${contactNote}${langNote}`;
   } else {
     system = SHELL_SYSTEM_PROMPT;
     userContent = image
-      ? `أعد إنشاء التصميم الظاهر في الصورة المرفقة **طِبق الأصل قدر الإمكان** كصفحة ويب حيّة: التزِم بنفس التخطيط (layout)، والأقسام وترتيبها، والألوان الدقيقة، والمسافات، وأنماط الخطوط، وأشكال الأزرار والبطاقات، والنصوص الظاهرة، والأيقونات/الصور النائبة في أماكنها. اجعلها متجاوبة وعالية الجودة وبنفس روح التصميم بدقة، ولا تضِف عناصر غير موجودة في الصورة.${prompt && prompt.trim() ? `\n\nثم طبّق هذه التعديلات المطلوبة فوق التصميم الأصلي: ${prompt}` : ""}${langNote}`
-      : `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}${langNote}`;
+      ? `أعد إنشاء التصميم الظاهر في الصورة المرفقة **طِبق الأصل قدر الإمكان** كصفحة ويب حيّة: التزِم بنفس التخطيط (layout)، والأقسام وترتيبها، والألوان الدقيقة، والمسافات، وأنماط الخطوط، وأشكال الأزرار والبطاقات، والنصوص الظاهرة، والأيقونات/الصور النائبة في أماكنها. اجعلها متجاوبة وعالية الجودة وبنفس روح التصميم بدقة، ولا تضِف عناصر غير موجودة في الصورة.${prompt && prompt.trim() ? `\n\nثم طبّق هذه التعديلات المطلوبة فوق التصميم الأصلي: ${prompt}` : ""}${contactNote}${langNote}`
+      : `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}${themeNote}${contactNote}${langNote}`;
   }
 
   type Block =
