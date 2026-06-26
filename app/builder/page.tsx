@@ -6,6 +6,8 @@ import { MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
 import { useUser } from "@/lib/supabase/useUser";
 import { getSupabase } from "@/lib/supabase/client";
 import VoiceButton from "@/components/VoiceButton";
+import GithubButton from "@/components/GithubButton";
+import { ghPush, ghStore } from "@/lib/github";
 
 interface ChatMsg {
   role: "user" | "system";
@@ -193,6 +195,26 @@ export default function Builder() {
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [editScope, setEditScope] = useState<"all" | "phone">("all");
+  const [editImage, setEditImage] = useState<{ data: string; mediaType: string } | null>(null);
+  const editImgRef = useRef<HTMLInputElement>(null);
+  const editImageRef = useRef<{ data: string; mediaType: string } | null>(null);
+  editImageRef.current = editImage;
+
+  function onEditImg(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("الصورة كبيرة جدًا (الحد 5 ميجابايت).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = String(reader.result).split(",")[1];
+      setEditImage({ data, mediaType: file.type || "image/png" });
+    };
+    reader.readAsDataURL(file);
+  }
   const [editDoc, setEditDoc] = useState("");
   const [selected, setSelected] = useState<Selected | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -499,7 +521,7 @@ export default function Builder() {
       const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: htmlRef.current, instruction, model }),
+        body: JSON.stringify({ html: htmlRef.current, instruction, model, image: editImageRef.current }),
         signal: ac.signal,
       });
       if (!res.ok || !res.body) {
@@ -537,12 +559,14 @@ export default function Builder() {
         { role: "system", text: "تم تطبيق التعديل ✓" },
         { role: "system", text: `💡 استهلاك التعديل: ${estimateCost(u.inT, u.outT, model)}` },
       ]);
+      autoSyncGithub();
     } catch (e) {
       setError(mapError(e));
       setTab(htmlRef.current ? "preview" : "code");
     } finally {
       clearTimeout(timeout);
       setLoading(false);
+      setEditImage(null);
     }
   }
 
@@ -793,6 +817,15 @@ export default function Builder() {
     }
   }
 
+  // Silent auto-sync to GitHub after a successful edit/build, if enabled.
+  function autoSyncGithub() {
+    if (!ghStore.auto()) return;
+    const token = ghStore.token();
+    const repo = ghStore.repo();
+    if (!token || !repo || !htmlRef.current) return;
+    ghPush({ "index.html": cleanHtml(htmlRef.current) }, { token, repo, message: "Auto-sync from oji builder" }).catch(() => {});
+  }
+
   async function toApk() {
     if (!html || publishing) return;
     // Auto-publish silently so the client doesn't do any step — one click → APK.
@@ -940,6 +973,7 @@ export default function Builder() {
           <button onClick={connectDomain} disabled={!html || loading || linking} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {linking ? "...ربط" : "🌐 دومين"}
           </button>
+          {html && <GithubButton files={() => ({ "index.html": cleanHtml(htmlRef.current || html) })} defaultRepo="oji-site" />}
           <button onClick={toApk} disabled={!html || publishing} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-accent)] disabled:opacity-40 transition whitespace-nowrap">📦 APK</button>
           <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">معاينة ↗</button>
           <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">تنزيل</button>
@@ -1088,8 +1122,19 @@ export default function Builder() {
             </div>
             <div className="rounded-xl bg-[var(--oji-surface-2)] border border-[var(--oji-border)] p-2">
               <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }} placeholder={chatMode === "chat" ? "ناقش أو اسأل: «إيه أحسن ألوان لموقع مطعم؟»، «اقترحلي أقسام»..." : selected ? "اطلب تعديل العنصر المحدد بالذكاء..." : "اطلب تعديلًا: «غيّر الألوان»، «أضف صفحة أسعار»، «أضف لوجو»..."} className="w-full h-16 bg-transparent resize-none outline-none px-2 py-1 text-sm placeholder:text-[var(--oji-muted)]" />
+              <input ref={editImgRef} type="file" accept="image/*" onChange={onEditImg} className="hidden" />
+              {chatMode === "edit" && editImage && (
+                <div className="flex items-center gap-2 mb-1 text-xs bg-[var(--oji-surface)] border border-[var(--oji-border)] rounded-lg px-2 py-1 w-max">
+                  <img src={`data:${editImage.mediaType};base64,${editImage.data}`} alt="مرجع" className="w-7 h-7 rounded object-cover" />
+                  <span className="text-[var(--oji-muted)]">صورة مرجعية مرفقة</span>
+                  <button onClick={() => setEditImage(null)} className="text-red-300 hover:text-red-200">✕</button>
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-1">
                 <VoiceButton onText={(t) => setInput((p) => (p ? p + " " + t : t))} />
+                {chatMode === "edit" && (
+                  <button type="button" onClick={() => editImgRef.current?.click()} title="أرفق صورة مرجعية للتعديل" className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)] transition">🖼️</button>
+                )}
                 <button onClick={onSend} disabled={loading || !input.trim() || (chatMode === "edit" && !html)} className={`flex-1 py-2 rounded-lg font-bold text-sm disabled:opacity-40 transition text-[#06121f] ${chatMode === "chat" ? "bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff]" : "bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)]"}`}>
                   {chatMode === "chat" ? "إرسال 💬" : selected ? "عدّل المحدد بالذكاء" : "إرسال التعديل"}
                 </button>

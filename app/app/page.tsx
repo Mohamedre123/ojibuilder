@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_MODEL } from "@/lib/models";
+import GithubButton from "@/components/GithubButton";
 
 interface GenFile {
   path: string;
@@ -221,6 +222,7 @@ export default function AppBuilder() {
                 <button onClick={() => router.push("/apk")} className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl font-bold border border-[var(--oji-border)] hover:border-[var(--oji-accent)] transition">
                   📦 تحويل لـ APK
                 </button>
+                <GithubButton files={() => Object.fromEntries(files.map((f) => [f.path, f.content]))} defaultRepo="oji-app" className="px-7 py-3.5 rounded-2xl" />
               </div>
               <p className="text-xs text-[var(--oji-muted)]">التنزيل: كل الملفات + SETUP. التشغيل المباشر يفتح المشروع حيًّا في StackBlitz (الأفضل على متصفح كمبيوتر).</p>
             </div>

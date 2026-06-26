@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { html, instruction, model: reqModel } = await req.json();
+  const { html, instruction, model: reqModel, image } = await req.json();
   if (!html || !instruction) {
     return NextResponse.json({ error: "الكود الحالي وطلب التعديل مطلوبان" }, { status: 400 });
   }
@@ -45,13 +45,23 @@ export async function POST(req: NextRequest) {
       let usageIn = 0;
       let usageOut = 0;
       try {
+        type Block =
+          | { type: "text"; text: string }
+          | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+        const blocks: Block[] = [];
+        if (image && image.data && image.mediaType) {
+          blocks.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data } });
+        }
+        blocks.push({
+          type: "text",
+          text: `المستند الحالي:\n\n${html}\n\n---\n\nطلب التعديل: ${instruction}${image ? "\n\n(استرشِد بالصورة المرفقة كمرجع بصري للتعديل المطلوب.)" : ""}`,
+        });
         const ai = client.messages.stream({
           model,
           max_tokens: 16000,
           system: EDIT_SYSTEM_PROMPT,
-          messages: [
-            { role: "user", content: `المستند الحالي:\n\n${html}\n\n---\n\nطلب التعديل: ${instruction}` },
-          ],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          messages: [{ role: "user", content: blocks as any }],
         });
         for await (const event of ai) {
           if (event.type === "message_start") {
