@@ -23,10 +23,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "محتوى غير صالح" }, { status: 400 });
   }
   const siteId = (typeof id === "string" && id) ? id.replace(/[^a-z0-9-]/gi, "") : makeId();
+  if (!process.env.BLOB_READ_WRITE_TOKEN && process.env.VERCEL) {
+    return NextResponse.json(
+      { error: "النشر يحتاج تخزينًا دائمًا: أنشئ Vercel Blob Store من لوحة Vercel (Storage) — يُضاف المتغير BLOB_READ_WRITE_TOKEN تلقائيًا، ثم أعد النشر." },
+      { status: 503 }
+    );
+  }
   try {
     await savePublished(siteId, html);
     return NextResponse.json({ id: siteId, path: `/s/${siteId}` });
-  } catch {
-    return NextResponse.json({ error: "تعذّر النشر" }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "تعذّر النشر" }, { status: 500 });
   }
 }
