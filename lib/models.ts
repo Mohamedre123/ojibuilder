@@ -13,6 +13,7 @@ export interface ModelOption {
 export const MODELS: ModelOption[] = [
   { id: "claude-haiku-4-5", label: "Haiku 4.5", tagline: "الأسرع والأوفر", inPrice: 1, outPrice: 5, speed: "⚡ أسرع", badge: "⚡" },
   { id: "claude-sonnet-4-6", label: "Sonnet 4.6", tagline: "توازن السرعة والجودة", inPrice: 3, outPrice: 15, speed: "🚀 سريع", badge: "⚖️" },
+  { id: "claude-sonnet-5", label: "Sonnet 5", tagline: "جودة قريبة من Opus بسعر Sonnet", inPrice: 3, outPrice: 15, speed: "✨ الأحدث", badge: "✨" },
   { id: "claude-opus-4-8", label: "Opus 4.8", tagline: "الأقوى والأعلى جودة", inPrice: 5, outPrice: 25, speed: "💎 الأقوى", badge: "💎" },
   // ملاحظة: claude-fable-5 متاح لكنه يتطلب احتفاظ بيانات 30 يومًا (لا يعمل تحت ZDR)
   // وأغلى بكثير — أزيل من القائمة لتجنّب أخطاء على حسابات لا تدعمه. لإعادته أضف:

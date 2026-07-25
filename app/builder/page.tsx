@@ -145,6 +145,33 @@ function injectEditor(doc: string): string {
   return doc + EDITOR_RUNTIME;
 }
 
+// Guaranteed page-navigation + smooth-scroll runtime. Injected into the live
+// preview and every export so multi-page nav and anchor buttons ALWAYS work,
+// regardless of whatever (possibly buggy) script the model produced.
+const SITE_RUNTIME = `<script>(function(){
+  if(window.__ojiNav)return; window.__ojiNav=1;
+  function show(id){
+    var secs=document.querySelectorAll('section[data-page]'); if(!secs.length)return false; var found=false;
+    secs.forEach(function(s){ if(s.getAttribute('data-page')===id){ s.classList.remove('hidden'); s.style.display=''; found=true; } else { s.classList.add('hidden'); } });
+    if(found){ try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);} document.querySelectorAll('[data-nav]').forEach(function(n){ n.classList.toggle('active', n.getAttribute('data-nav')===id); }); }
+    return found;
+  }
+  document.addEventListener('click',function(e){
+    var n=e.target.closest&&e.target.closest('[data-nav]');
+    if(n){ var id=n.getAttribute('data-nav'); if(id&&show(id)){ e.preventDefault(); } return; }
+    var a=e.target.closest&&e.target.closest('a[href^="#"]');
+    if(a){ var h=a.getAttribute('href').slice(1); if(h){ var sec=document.querySelector('section[data-page="'+h+'"]'); if(sec){ if(show(h)) e.preventDefault(); return; } var el=document.getElementById(h); if(el){ e.preventDefault(); try{el.scrollIntoView({behavior:'smooth'});}catch(x){el.scrollIntoView();} } } }
+  },true);
+  var secs=document.querySelectorAll('section[data-page]');
+  if(secs.length){ var vis=Array.prototype.some.call(secs,function(s){return !s.classList.contains('hidden');}); if(!vis) show(secs[0].getAttribute('data-page')); }
+})();</script>`;
+
+function withSiteRuntime(doc: string): string {
+  if (!doc) return doc;
+  if (doc.includes("</body>")) return doc.replace("</body>", SITE_RUNTIME + "</body>");
+  return doc + SITE_RUNTIME;
+}
+
 function mapError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   const low = raw.toLowerCase();
@@ -817,7 +844,7 @@ export default function Builder() {
         const row = {
           user_id: userRef.current.id,
           title: title || "مشروع بدون اسم",
-          html: cleanHtml(html),
+          html: withSiteRuntime(cleanHtml(html)),
           updated_at: new Date().toISOString(),
         };
         if (current) {
@@ -832,7 +859,7 @@ export default function Builder() {
         const res = await fetch("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: current || undefined, html: cleanHtml(html), title }),
+          body: JSON.stringify({ id: current || undefined, html: withSiteRuntime(cleanHtml(html)), title }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "تعذّر الحفظ");
@@ -853,7 +880,7 @@ export default function Builder() {
     const token = ghStore.token();
     const repo = ghStore.repo();
     if (!token || !repo || !htmlRef.current) return;
-    ghPush({ "index.html": cleanHtml(htmlRef.current) }, { token, repo, message: "Auto-sync from oji builder" }).catch(() => {});
+    ghPush({ "index.html": withSiteRuntime(cleanHtml(htmlRef.current)) }, { token, repo, message: "Auto-sync from oji builder" }).catch(() => {});
   }
 
   async function toApk() {
@@ -866,7 +893,7 @@ export default function Builder() {
         const res = await fetch("/api/publish", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ html: cleanHtml(html) }),
+          body: JSON.stringify({ html: withSiteRuntime(cleanHtml(html)) }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "تعذّر التجهيز");
@@ -890,7 +917,7 @@ export default function Builder() {
       const res = await fetch("/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: cleanHtml(html) }),
+        body: JSON.stringify({ html: withSiteRuntime(cleanHtml(html)) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "تعذّر النشر");
@@ -945,7 +972,7 @@ export default function Builder() {
   }
 
   function download() {
-    const blob = new Blob([cleanHtml(html)], { type: "text/html;charset=utf-8" });
+    const blob = new Blob([withSiteRuntime(cleanHtml(html))], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -954,7 +981,7 @@ export default function Builder() {
     URL.revokeObjectURL(url);
   }
   function openNewTab() {
-    const blob = new Blob([cleanHtml(html)], { type: "text/html;charset=utf-8" });
+    const blob = new Blob([withSiteRuntime(cleanHtml(html))], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
   }
@@ -1003,7 +1030,7 @@ export default function Builder() {
           <button onClick={connectDomain} disabled={!html || loading || linking} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">
             {linking ? "...ربط" : "🌐 دومين"}
           </button>
-          {html && <GithubButton files={() => ({ "index.html": cleanHtml(htmlRef.current || html) })} defaultRepo="oji-site" />}
+          {html && <GithubButton files={() => ({ "index.html": withSiteRuntime(cleanHtml(htmlRef.current || html)) })} defaultRepo="oji-site" />}
           <button onClick={toApk} disabled={!html || publishing} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-accent)] disabled:opacity-40 transition whitespace-nowrap">📦 APK</button>
           <button onClick={openNewTab} disabled={!html} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] disabled:opacity-40 transition">معاينة ↗</button>
           <button onClick={download} disabled={!html} className="px-3 py-1.5 rounded-lg bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f] font-bold text-sm disabled:opacity-40 transition">تنزيل</button>
@@ -1200,8 +1227,8 @@ export default function Builder() {
                     ref={editMode ? iframeRef : undefined}
                     key={editMode ? "editor" : "preview"}
                     title="preview"
-                    srcDoc={editMode ? editDoc : previewHtml}
-                    sandbox="allow-scripts allow-forms"
+                    srcDoc={editMode ? editDoc : withSiteRuntime(previewHtml)}
+                    sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
                     referrerPolicy={editMode ? undefined : "no-referrer"}
                     className={`bg-white ${device === "phone" ? "w-[390px] max-w-full h-full rounded-[2rem] border-4 border-[var(--oji-surface-2)] shadow-2xl" : "w-full h-full"}`}
                   />
