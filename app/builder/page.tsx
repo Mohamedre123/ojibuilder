@@ -151,8 +151,8 @@ function injectEditor(doc: string): string {
 const SITE_RUNTIME = `<script>(function(){
   if(window.__ojiNav)return; window.__ojiNav=1;
   function show(id){
-    var secs=document.querySelectorAll('section[data-page]'); if(!secs.length)return false; var found=false;
-    secs.forEach(function(s){ if(s.getAttribute('data-page')===id){ s.classList.remove('hidden'); s.style.display=''; found=true; } else { s.classList.add('hidden'); } });
+    var secs=document.querySelectorAll('[data-page]'); if(!secs.length)return false; var found=false;
+    secs.forEach(function(s){ if(s.getAttribute('data-page')===id){ s.classList.remove('hidden'); s.style.display=''; found=true; } else { s.classList.add('hidden'); s.style.display='none'; } });
     if(found){ try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);} document.querySelectorAll('[data-nav]').forEach(function(n){ n.classList.toggle('active', n.getAttribute('data-nav')===id); }); }
     return found;
   }
@@ -160,16 +160,24 @@ const SITE_RUNTIME = `<script>(function(){
     var n=e.target.closest&&e.target.closest('[data-nav]');
     if(n){ var id=n.getAttribute('data-nav'); if(id&&show(id)){ e.preventDefault(); } return; }
     var a=e.target.closest&&e.target.closest('a[href^="#"]');
-    if(a){ var h=a.getAttribute('href').slice(1); if(h){ var sec=document.querySelector('section[data-page="'+h+'"]'); if(sec){ if(show(h)) e.preventDefault(); return; } var el=document.getElementById(h); if(el){ e.preventDefault(); try{el.scrollIntoView({behavior:'smooth'});}catch(x){el.scrollIntoView();} } } }
+    if(a){ var h=a.getAttribute('href').slice(1); if(h){ var sec=document.querySelector('[data-page="'+h+'"]'); if(sec){ if(show(h)) e.preventDefault(); return; } var el=document.getElementById(h); if(el){ e.preventDefault(); try{el.scrollIntoView({behavior:'smooth'});}catch(x){el.scrollIntoView();} } } }
   },true);
-  var secs=document.querySelectorAll('section[data-page]');
-  if(secs.length){ var vis=Array.prototype.some.call(secs,function(s){return !s.classList.contains('hidden');}); if(!vis) show(secs[0].getAttribute('data-page')); }
+  var secs=document.querySelectorAll('[data-page]');
+  if(secs.length>1){ var cur=null; for(var i=0;i<secs.length;i++){ if(!secs[i].classList.contains('hidden')&&secs[i].style.display!=='none'){ cur=secs[i].getAttribute('data-page'); break; } } show(cur||secs[0].getAttribute('data-page')); }
 })();</script>`;
 
 function withSiteRuntime(doc: string): string {
   if (!doc) return doc;
   if (doc.includes("</body>")) return doc.replace("</body>", SITE_RUNTIME + "</body>");
   return doc + SITE_RUNTIME;
+}
+
+// Photographic fallback if AI image generation isn't available/fails.
+function fallbackImg(desc: string): string {
+  const kw = encodeURIComponent(
+    (desc || "abstract").replace(/[^a-zA-Z0-9\s,]/g, "").trim().split(/\s+/).slice(0, 2).join(",") || "abstract"
+  );
+  return `https://loremflickr.com/1200/700/${kw}`;
 }
 
 function mapError(e: unknown): string {
@@ -487,6 +495,42 @@ export default function Builder() {
     return ac;
   }
 
+  // Replace <img data-oji-gen="..."> placeholders with real AI-generated images
+  // (Gemini / Nano Banana), or a photographic fallback. Runs after text is done.
+  async function resolveGenImages(doc: string): Promise<string> {
+    if (!doc || !doc.includes("data-oji-gen")) return doc;
+    let parsed: Document;
+    try {
+      parsed = new DOMParser().parseFromString(doc, "text/html");
+    } catch {
+      return doc;
+    }
+    const nodes = Array.from(parsed.querySelectorAll("[data-oji-gen]")).slice(0, 4);
+    if (!nodes.length) return doc;
+    setMessages((m) => [...m, { role: "system", text: `🎨 أُنشئ ${nodes.length} صورة/بانر بالذكاء (Nano Banana)...` }]);
+    await Promise.all(
+      nodes.map(async (el) => {
+        const desc = el.getAttribute("data-oji-gen") || "";
+        el.removeAttribute("data-oji-gen");
+        if (!el.getAttribute("alt")) el.setAttribute("alt", desc.slice(0, 80));
+        let src = "";
+        try {
+          const res = await fetch("/api/image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: desc }),
+          });
+          const data = await res.json();
+          if (res.ok && data.url) src = data.url;
+        } catch {
+          /* ignore */
+        }
+        el.setAttribute("src", src || fallbackImg(desc));
+      })
+    );
+    return "<!DOCTYPE html>\n" + parsed.documentElement.outerHTML;
+  }
+
   async function generateSite() {
     lastReqRef.current = { kind: "site" };
     const { prompt, image, lang, theme, contact } = seedRef.current;
@@ -533,6 +577,10 @@ export default function Builder() {
         setPreviewHtml(current);
         sessionStorage.setItem("oji:html", current);
       }
+      current = await resolveGenImages(current);
+      setHtml(current);
+      setPreviewHtml(current);
+      sessionStorage.setItem("oji:html", current);
       commit(current);
       setMessages((m) => [
         ...m,
@@ -582,7 +630,7 @@ export default function Builder() {
       const errMatch = buf.match(/<!--OJI_ERROR:([\s\S]*?)-->/);
       if (errMatch) throw new Error(errMatch[1]);
       if (!buf.trim()) throw new Error("لم يصل أي محتوى من الخادم");
-      const finalHtml = cleanHtml(buf);
+      const finalHtml = await resolveGenImages(cleanHtml(buf));
       setHtml(finalHtml);
       setPreviewHtml(finalHtml);
       sessionStorage.setItem("oji:html", finalHtml);
