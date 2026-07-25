@@ -970,8 +970,10 @@ export default function Builder() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "تعذّر النشر");
       publishedIdRef.current = data.id;
-      const fullUrl = window.location.origin + data.path;
-      setMessages((m) => [...m, { role: "system", text: `🚀 تم النشر! الرابط: ${fullUrl}\nتقدر دلوقتي تربط نطاقك الخاص من زر «🌐 دومين».` }]);
+      const pathUrl = window.location.origin + data.path;
+      const fullUrl = data.subdomainUrl || pathUrl;
+      const extra = data.subdomainUrl ? `\n(أو: ${pathUrl})` : "";
+      setMessages((m) => [...m, { role: "system", text: `🚀 تم النشر! الرابط: ${fullUrl}${extra}\nتقدر دلوقتي تربط نطاقك الخاص من زر «🌐 دومين».` }]);
       window.open(fullUrl, "_blank");
     } catch (e) {
       setError(mapError(e));

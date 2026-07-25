@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
   }
   try {
     await savePublished(siteId, html);
-    return NextResponse.json({ id: siteId, path: `/s/${siteId}` });
+    const appDomain = process.env.APP_DOMAIN;
+    const subdomainUrl = appDomain ? `https://${siteId}.${appDomain}` : "";
+    return NextResponse.json({ id: siteId, path: `/s/${siteId}`, subdomainUrl });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "تعذّر النشر" }, { status: 500 });
   }
