@@ -32,7 +32,10 @@ export async function POST(req: NextRequest) {
   try {
     await savePublished(siteId, html);
     const appDomain = process.env.APP_DOMAIN;
-    const subdomainUrl = appDomain ? `https://${siteId}.${appDomain}` : "";
+    // Only advertise the subdomain once the wildcard domain is actually live,
+    // otherwise clients get a dead 404 link. Set SUBDOMAIN_READY=1 after adding
+    // *.APP_DOMAIN in Vercel. The /s/<id> path always works.
+    const subdomainUrl = appDomain && process.env.SUBDOMAIN_READY ? `https://${siteId}.${appDomain}` : "";
     return NextResponse.json({ id: siteId, path: `/s/${siteId}`, subdomainUrl });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "تعذّر النشر" }, { status: 500 });
