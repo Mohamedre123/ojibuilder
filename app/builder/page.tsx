@@ -16,6 +16,7 @@ interface ChatMsg {
 interface Selected {
   tag: string;
   html: string;
+  key?: string;
 }
 interface ImageSeed {
   data: string;
@@ -92,6 +93,13 @@ const EDITOR_RUNTIME = `
   .__oji_hl{ outline:2px dashed #14b8a6 !important; outline-offset:2px; cursor:pointer; }
   .__oji_sel{ outline:2px solid #a78bfa !important; outline-offset:2px; }
   [contenteditable="true"]{ cursor:text; }
+  .__oji_add{ position:relative; height:30px; display:flex; align-items:center; justify-content:center; }
+  .__oji_add::before{ content:''; position:absolute; left:4%; right:4%; height:2px; background:linear-gradient(90deg,transparent,rgba(124,58,237,.55),transparent); }
+  .__oji_addbtn{ position:relative; z-index:9; background:#7c3aed; color:#fff; border:0; border-radius:999px; padding:6px 14px;
+    font:700 12px/1 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif; cursor:pointer; opacity:.4;
+    box-shadow:0 4px 14px rgba(0,0,0,.35); transition:opacity .15s, transform .15s; white-space:nowrap; }
+  .__oji_add:hover .__oji_addbtn{ opacity:1; transform:scale(1.04); }
+  @media (max-width:640px){ .__oji_addbtn{ opacity:.9; font-size:11px; padding:5px 11px; } }
 </style>
 <script id="__oji_edit_js">
 (function(){
@@ -101,15 +109,20 @@ const EDITOR_RUNTIME = `
   document.addEventListener('mouseout',function(e){ if(e.target&&e.target.classList) e.target.classList.remove('__oji_hl'); },true);
   document.addEventListener('click',function(e){
     var t=e.target;
-    if(isNav(t)){ return; }
+    var addb=t&&t.closest&&t.closest('.__oji_addbtn');
+    if(addb){ e.preventDefault(); e.stopPropagation(); parent.postMessage({__oji:1,type:'addHere',index:parseInt(addb.getAttribute('data-i'),10)||0},'*'); return; }
+    if(isNav(t)){ setTimeout(renderAdders,150); return; }
     e.preventDefault(); e.stopPropagation();
     if(sel){ sel.classList.remove('__oji_sel'); sel.removeAttribute('contenteditable'); }
     sel=t; sel.classList.add('__oji_sel');
     if(sel.tagName!=='IMG'){ sel.setAttribute('contenteditable','true'); sel.focus(); }
-    parent.postMessage({__oji:1,type:'select',tag:sel.tagName,html:sel.outerHTML},'*');
+    var key=elKey(sel);
+    parent.postMessage({__oji:1,type:'select',tag:sel.tagName,key:key,html:sel.outerHTML},'*');
+    sync();
   },true);
   document.addEventListener('input',function(){ sync(); },true);
   function clean(node){
+    node.querySelectorAll('.__oji_add').forEach(function(x){x.remove();});
     node.querySelectorAll('.__oji_hl').forEach(function(x){x.classList.remove('__oji_hl');});
     node.querySelectorAll('.__oji_sel').forEach(function(x){x.classList.remove('__oji_sel');});
     node.querySelectorAll('[contenteditable]').forEach(function(x){x.removeAttribute('contenteditable');});
@@ -127,8 +140,45 @@ const EDITOR_RUNTIME = `
     var html='<!DOCTYPE html>\\n<html'+docAttrs()+'>'+c.innerHTML+'</html>';
     parent.postMessage({__oji:1,type:'update',html:html},'*');
   }
+  // ---- Shopify-style "+" insertion rails between top-level blocks ----
+  function adderHost(){
+    var pages=document.querySelectorAll('[data-page]');
+    for(var i=0;i<pages.length;i++){ if(pages[i].offsetParent!==null) return pages[i]; }
+    return document.querySelector('main')||document.body;
+  }
+  function realKids(host){ return Array.prototype.filter.call(host.children,function(c){ return !(c.classList&&c.classList.contains('__oji_add')); }); }
+  function clearAdders(){ document.querySelectorAll('.__oji_add').forEach(function(x){x.remove();}); }
+  function rail(i){
+    var d=document.createElement('div'); d.className='__oji_add'; d.setAttribute('contenteditable','false');
+    var b=document.createElement('button'); b.type='button'; b.className='__oji_addbtn'; b.setAttribute('data-i',String(i));
+    b.textContent='＋ أضف قسم / بلوك / بانر';
+    d.appendChild(b); return d;
+  }
+  function renderAdders(){
+    clearAdders();
+    var host=adderHost(); if(!host) return;
+    var kids=realKids(host); if(!kids.length){ host.appendChild(rail(0)); return; }
+    kids.forEach(function(k,i){ host.insertBefore(rail(i),k); });
+    host.appendChild(rail(kids.length));
+  }
+  function insertNodes(index,html,asSlot){
+    var host=adderHost(); if(!host) return;
+    var kids=realKids(host); var ref=kids[index]||null;
+    var nodes;
+    if(asSlot){ var s=document.createElement('div'); s.setAttribute('data-oji-slot',''); nodes=[s]; }
+    else { var tmp=document.createElement('div'); tmp.innerHTML=html; nodes=Array.prototype.slice.call(tmp.childNodes); }
+    nodes.forEach(function(n){ host.insertBefore(n,ref); });
+    clearAdders(); sync(); renderAdders();
+    if(!asSlot&&nodes[0]&&nodes[0].scrollIntoView){ try{ nodes[0].scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+  }
+  renderAdders();
+  setInterval(function(){ if(!document.querySelector('.__oji_add')) renderAdders(); },1500);
+
   window.addEventListener('message',function(ev){
     var d=ev.data||{}; if(!d.__oji)return;
+    if(d.type==='insertAt'){ insertNodes(d.index,d.html,false); }
+    if(d.type==='insertSlot'){ insertNodes(d.index,'',true); }
+    if(d.type==='refreshAdders'){ renderAdders(); }
     if(d.type==='delete'&&sel){ sel.remove(); sel=null; sync(); }
     if(d.type==='replaceImg'&&sel&&sel.tagName==='IMG'){ sel.src=d.url; sync(); }
     if(d.type==='insertImg'){ var img=document.createElement('img'); img.src=d.url; img.alt=''; img.style.maxWidth='100%'; img.style.borderRadius='12px'; (sel||document.body).appendChild(img); sync(); }
@@ -171,6 +221,92 @@ function withSiteRuntime(doc: string): string {
   if (doc.includes("</body>")) return doc.replace("</body>", SITE_RUNTIME + "</body>");
   return doc + SITE_RUNTIME;
 }
+
+// Ready-made sections/blocks the client can drop in without AI. They use the
+// site's own CSS color variables so they always match the current theme, and
+// are fully responsive (mobile-first grid + fluid type).
+const LIB: { id: string; title: string; emoji: string; html: string }[] = [
+  {
+    id: "strip",
+    title: "شريط ترويجي",
+    emoji: "🏷️",
+    html: `<section class="w-full px-4 py-3 sm:py-4 bg-[var(--c-primary,#0ea5e9)] text-white text-center">
+  <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+    <p class="font-bold text-sm sm:text-base m-0">🔥 عرض خاص لفترة محدودة — خصم يصل إلى 40%</p>
+    <a href="#" class="shrink-0 bg-white/95 text-[var(--c-primary,#0ea5e9)] font-extrabold text-sm rounded-full px-5 py-2 no-underline">تسوّق الآن</a>
+  </div>
+</section>`,
+  },
+  {
+    id: "features",
+    title: "مزايا (3 بطاقات)",
+    emoji: "⭐",
+    html: `<section class="w-full px-4 py-12 sm:py-16">
+  <div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl sm:text-3xl font-extrabold text-center mb-3">لماذا تختارنا؟</h2>
+    <p class="text-center opacity-70 mb-10 max-w-2xl mx-auto">نقدّم لك تجربة متكاملة تجمع بين الجودة والسعر المناسب وخدمة تستحق ثقتك.</p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div class="rounded-2xl border border-black/10 p-6 text-center"><div class="text-3xl mb-3">🚚</div><h3 class="font-bold text-lg mb-2">شحن سريع</h3><p class="opacity-70 text-sm m-0">توصيل لكل المحافظات خلال 48 ساعة.</p></div>
+      <div class="rounded-2xl border border-black/10 p-6 text-center"><div class="text-3xl mb-3">🛡️</div><h3 class="font-bold text-lg mb-2">ضمان حقيقي</h3><p class="opacity-70 text-sm m-0">ضمان شامل على كل المنتجات لمدة عام.</p></div>
+      <div class="rounded-2xl border border-black/10 p-6 text-center"><div class="text-3xl mb-3">💬</div><h3 class="font-bold text-lg mb-2">دعم 24/7</h3><p class="opacity-70 text-sm m-0">فريقنا جاهز للرد على استفسارك في أي وقت.</p></div>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: "stats",
+    title: "إحصائيات",
+    emoji: "📊",
+    html: `<section class="w-full px-4 py-12 sm:py-16 bg-black/5">
+  <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+    <div><div class="text-3xl sm:text-4xl font-extrabold text-[var(--c-primary,#0ea5e9)]">+5000</div><p class="opacity-70 text-sm mt-1 m-0">عميل سعيد</p></div>
+    <div><div class="text-3xl sm:text-4xl font-extrabold text-[var(--c-primary,#0ea5e9)]">+12</div><p class="opacity-70 text-sm mt-1 m-0">سنة خبرة</p></div>
+    <div><div class="text-3xl sm:text-4xl font-extrabold text-[var(--c-primary,#0ea5e9)]">+300</div><p class="opacity-70 text-sm mt-1 m-0">مشروع مكتمل</p></div>
+    <div><div class="text-3xl sm:text-4xl font-extrabold text-[var(--c-primary,#0ea5e9)]">4.9★</div><p class="opacity-70 text-sm mt-1 m-0">تقييم العملاء</p></div>
+  </div>
+</section>`,
+  },
+  {
+    id: "testimonials",
+    title: "آراء عملاء",
+    emoji: "💬",
+    html: `<section class="w-full px-4 py-12 sm:py-16">
+  <div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl sm:text-3xl font-extrabold text-center mb-10">ماذا يقول عملاؤنا</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <figure class="rounded-2xl border border-black/10 p-6 m-0"><p class="m-0 mb-4 leading-relaxed">"تجربة ممتازة من أول التواصل لحد الاستلام، والجودة فاقت توقعاتي."</p><figcaption class="font-bold text-sm">أحمد سيد — القاهرة</figcaption></figure>
+      <figure class="rounded-2xl border border-black/10 p-6 m-0"><p class="m-0 mb-4 leading-relaxed">"الأسعار مناسبة جدًا والخدمة سريعة. أنصح بالتعامل معهم بشدة."</p><figcaption class="font-bold text-sm">منى خالد — جدة</figcaption></figure>
+      <figure class="rounded-2xl border border-black/10 p-6 m-0"><p class="m-0 mb-4 leading-relaxed">"فريق محترف ومتعاون، تابعوا معايا كل خطوة لحد ما اطمنت."</p><figcaption class="font-bold text-sm">كريم فؤاد — دبي</figcaption></figure>
+    </div>
+  </div>
+</section>`,
+  },
+  {
+    id: "faq",
+    title: "أسئلة شائعة",
+    emoji: "❓",
+    html: `<section class="w-full px-4 py-12 sm:py-16">
+  <div class="max-w-3xl mx-auto">
+    <h2 class="text-2xl sm:text-3xl font-extrabold text-center mb-8">الأسئلة الشائعة</h2>
+    <details class="rounded-xl border border-black/10 p-4 mb-3"><summary class="font-bold cursor-pointer">كم تستغرق مدة التوصيل؟</summary><p class="opacity-70 mt-3 mb-0">من 2 إلى 5 أيام عمل حسب المحافظة.</p></details>
+    <details class="rounded-xl border border-black/10 p-4 mb-3"><summary class="font-bold cursor-pointer">هل يمكن الاستبدال أو الاسترجاع؟</summary><p class="opacity-70 mt-3 mb-0">نعم، خلال 14 يومًا من الاستلام بشرط بقاء المنتج بحالته.</p></details>
+    <details class="rounded-xl border border-black/10 p-4"><summary class="font-bold cursor-pointer">ما هي طرق الدفع المتاحة؟</summary><p class="opacity-70 mt-3 mb-0">الدفع عند الاستلام، أو بالبطاقة، أو المحافظ الإلكترونية.</p></details>
+  </div>
+</section>`,
+  },
+  {
+    id: "cta",
+    title: "دعوة لإجراء",
+    emoji: "🚀",
+    html: `<section class="w-full px-4 py-14 sm:py-20 text-center bg-[var(--c-primary,#0ea5e9)] text-white">
+  <div class="max-w-3xl mx-auto">
+    <h2 class="text-2xl sm:text-4xl font-extrabold mb-4">جاهز تبدأ معنا؟</h2>
+    <p class="opacity-90 mb-8">تواصل معنا الآن واحصل على استشارة مجانية وعرض سعر خاص.</p>
+    <a href="#" class="inline-block bg-white text-[var(--c-primary,#0ea5e9)] font-extrabold rounded-full px-8 py-3 no-underline">تواصل معنا</a>
+  </div>
+</section>`,
+  },
+];
 
 // Photographic fallback if AI image generation isn't available/fails.
 function fallbackImg(desc: string): string {
@@ -232,6 +368,11 @@ export default function Builder() {
   const [editMode, setEditMode] = useState(false);
   const [editScope, setEditScope] = useState<"all" | "phone">("all");
   const [editImage, setEditImage] = useState<{ data: string; mediaType: string } | null>(null);
+  const [insertOpen, setInsertOpen] = useState(false);
+  const [insertDesc, setInsertDesc] = useState("");
+  const [insertBusy, setInsertBusy] = useState("");
+  const insertIdxRef = useRef(0);
+  const pendingSlotRef = useRef<{ kind: "section" | "banner"; desc: string } | null>(null);
   const editImgRef = useRef<HTMLInputElement>(null);
   const editImageRef = useRef<{ data: string; mediaType: string } | null>(null);
   editImageRef.current = editImage;
@@ -323,8 +464,19 @@ export default function Builder() {
         setHtml(c);
         sessionStorage.setItem("oji:html", c);
         commitDebounced(c);
+        // A slot was just inserted for an AI-built section → fill it now.
+        const pend = pendingSlotRef.current;
+        if (pend && c.includes("data-oji-slot")) {
+          pendingSlotRef.current = null;
+          htmlRef.current = c; // ref is render-synced; make it current for runEdit
+          runSlotFill(c, pend);
+        }
       } else if (d.type === "select") {
-        setSelected({ tag: d.tag, html: d.html });
+        setSelected({ tag: d.tag, html: d.html, key: d.key });
+      } else if (d.type === "addHere") {
+        insertIdxRef.current = typeof d.index === "number" ? d.index : 0;
+        setInsertOpen(true);
+        setMobileView("chat");
       }
     }
     window.addEventListener("message", onMsg);
@@ -630,7 +782,10 @@ export default function Builder() {
       const errMatch = buf.match(/<!--OJI_ERROR:([\s\S]*?)-->/);
       if (errMatch) throw new Error(errMatch[1]);
       if (!buf.trim()) throw new Error("لم يصل أي محتوى من الخادم");
-      const finalHtml = await resolveGenImages(cleanHtml(buf));
+      const finalHtml = (await resolveGenImages(cleanHtml(buf))).replace(
+        /<div\s+data-oji-slot(?:="")?\s*><\/div>/gi,
+        ""
+      );
       setHtml(finalHtml);
       setPreviewHtml(finalHtml);
       sessionStorage.setItem("oji:html", finalHtml);
@@ -666,7 +821,20 @@ export default function Builder() {
     setInput("");
     let instruction = text;
     if (selected) {
-      instruction = `ركّز التعديل على هذا العنصر تحديدًا داخل الموقع، وأعد المستند كاملًا:\n${selected.html}\n\nالمطلوب: ${text}`;
+      const anchor = selected.key
+        ? `العنصر المستهدف هو الذي يحمل السمة data-oji-el="${selected.key}".`
+        : `العنصر المستهدف هو هذا بالضبط:\n${selected.html}`;
+      instruction = `طبّق التعديل **داخل عنصر محدد فقط** وأعد المستند كاملًا.
+${anchor}
+
+المطلوب: ${text}
+
+قواعد صارمة للتعديل الموضعي:
+1. نفّذ التغيير **داخل هذا العنصر نفسه أو مكانه بالضبط** — ممنوع تمامًا إنشاء قسم/سيكشن جديد فوقه أو تحته أو خارج مكانه.
+2. التزم بنفس **عرض ومقاس** العنصر الحالي وحاويته (نفس max-w ونفس الـ padding والهوامش) — ممنوع أن يخرج المحتوى الجديد عريضًا full-width إن كان العنصر ليس كذلك.
+3. لا تترك أي فراغات كبيرة أو مربعات فارغة، ولا تُخلّ بتناسق الصفحة: عدّل ارتفاع/حشو العنصر ليناسب المحتوى الجديد بشكل مضبوط ومتناسق.
+4. لو المطلوب صورة أو بانر، استخدم <img data-oji-gen="وصف إنجليزي دقيق" ...> بأصناف متجاوبة (w-full h-auto object-cover ورادياس مناسب) بحيث يظهر مضبوطًا على الفون والكمبيوتر.
+5. لا تغيّر أي جزء آخر من الموقع إطلاقًا.`;
     }
     setMessages((m) => [...m, { role: "user", text: selected ? `🎯 (على العنصر المحدد) ${text}` : text }]);
     runEdit(instruction);
@@ -812,6 +980,72 @@ export default function Builder() {
     if (!v) return;
     iframePost({ type: "setLink", href: buildHref(v) });
   }
+  // ---- Insert panel (Shopify-style add section / block / banner) ----
+  const SLOT_RE = /<div\s+data-oji-slot(?:="")?\s*><\/div>/i;
+
+  function closeInsert() {
+    setInsertOpen(false);
+    setInsertDesc("");
+  }
+  function insertLibrary(item: { title: string; html: string }) {
+    iframePost({ type: "insertAt", index: insertIdxRef.current, html: item.html });
+    setMessages((m) => [...m, { role: "system", text: `➕ تمت إضافة «${item.title}» — تقدر تعدّله يدويًا أو تطلب تعديله بالذكاء.` }]);
+    closeInsert();
+  }
+  function startAiInsert(kind: "section" | "banner") {
+    const desc = insertDesc.trim();
+    if (!desc) {
+      alert(kind === "banner" ? "اكتب وصف البانر/الصورة المطلوبة." : "اكتب وصف القسم المطلوب.");
+      return;
+    }
+    pendingSlotRef.current = { kind, desc };
+    iframePost({ type: "insertSlot", index: insertIdxRef.current });
+    closeInsert();
+  }
+
+  // Fill the inserted slot: banners are built locally (fast), sections via AI.
+  async function runSlotFill(doc: string, pend: { kind: "section" | "banner"; desc: string }) {
+    if (pend.kind === "banner") {
+      setInsertBusy("🎨 أُنشئ البانر...");
+      setMessages((m) => [...m, { role: "system", text: `🎨 أُنشئ البانر: ${pend.desc}` }]);
+      let url = "";
+      try {
+        const res = await fetch("/api/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: pend.desc, aspect: "16:6" }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) url = data.url;
+      } catch {
+        /* ignore */
+      }
+      const src = url || fallbackImg(pend.desc);
+      const banner = `<section class="w-full px-4 py-6 sm:py-8"><div class="max-w-6xl mx-auto"><img src="${src}" alt="${pend.desc.slice(0, 80).replace(/"/g, "")}" loading="lazy" class="block w-full h-auto max-h-[420px] object-cover rounded-2xl shadow-lg" /></div></section>`;
+      const next = doc.replace(SLOT_RE, banner);
+      applyDoc(next);
+      setInsertBusy("");
+      setMessages((m) => [...m, { role: "system", text: url ? "تم إنشاء البانر وتركيبه ✓" : "تم تركيب صورة بديلة (فعّل GEMINI_API_KEY لتوليد بانر مخصّص)." }]);
+      return;
+    }
+    // AI-built section, scoped strictly to the slot so nothing else changes.
+    await runEdit(
+      `أدرِج قسمًا جديدًا مكان العنصر النائب <div data-oji-slot></div> بالضبط (استبدله به تمامًا واحذف العنصر النائب).
+المطلوب في القسم: ${pend.desc}
+قواعد صارمة: لا تغيّر أي شيء آخر في الصفحة إطلاقًا. اجعل عرض القسم ومسافاته الداخلية **مطابقة تمامًا** للأقسام المجاورة له (نفس الحاوية max-w ونفس الـ padding)، وبنفس ألوان وخطوط الموقع (متغيّرات --c-primary وغيرها)، ومتجاوب بالكامل على الفون والكمبيوتر بدون أي فراغات زائدة أو تمدّد خارج التنسيق.`
+    );
+  }
+
+  // Apply a full document produced locally (no AI round-trip).
+  function applyDoc(next: string) {
+    const c = cleanHtml(next);
+    setHtml(c);
+    setPreviewHtml(c);
+    sessionStorage.setItem("oji:html", c);
+    commit(c);
+    if (editMode) setEditDoc(injectEditor(c));
+  }
+
   function styleSelected(prop: string, value: string) {
     iframePost({ type: "style", prop, value, scope: editScope });
   }
@@ -1152,6 +1386,9 @@ export default function Builder() {
           {editMode && (
             <div className="px-3 pt-3 border-t border-[var(--oji-border)] space-y-2">
               <div className="text-xs text-[var(--oji-muted)]">{selected ? `العنصر المحدد: <${selected.tag.toLowerCase()}>` : "انقر على أي جزء في المعاينة لتحديده"}</div>
+              <div className="text-[11px] text-[var(--oji-accent)] bg-[var(--oji-accent)]/10 border border-[var(--oji-accent)]/30 rounded-lg px-2 py-1.5 leading-relaxed">
+                💡 بين كل قسم والتاني في المعاينة فيه زرار <b>＋</b> — منه تضيف قسم جاهز أو تطلب قسم/بانر بالذكاء في نفس المكان بالمقاس المضبوط.
+              </div>
               <input ref={editFileRef} type="file" accept="image/*" onChange={onEditFile} className="hidden" />
               {selected && (
                 <>
@@ -1292,6 +1529,68 @@ export default function Builder() {
           </div>
         </main>
       </div>
+
+      {/* Add section / block / banner — opened from the "+" rails in the preview */}
+      {insertOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" onClick={closeInsert}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full sm:max-w-lg max-h-[85vh] overflow-y-auto scroll-touch bg-[var(--oji-surface)] border border-[var(--oji-border)] rounded-t-2xl sm:rounded-2xl p-4 text-right shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-extrabold">➕ أضف قسمًا أو بلوك أو بانر</h3>
+              <button onClick={closeInsert} className="text-[var(--oji-muted)] hover:text-white text-lg leading-none">✕</button>
+            </div>
+
+            <div className="text-xs text-[var(--oji-muted)] mb-2">أقسام جاهزة (تُضاف فورًا ثم عدّلها يدويًا):</div>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {LIB.map((it) => (
+                <button
+                  key={it.id}
+                  onClick={() => insertLibrary(it)}
+                  className="px-3 py-2.5 rounded-xl border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] hover:bg-[var(--oji-surface-2)] transition text-right"
+                >
+                  {it.emoji} {it.title}
+                </button>
+              ))}
+            </div>
+
+            <div className="border-t border-[var(--oji-border)] pt-3">
+              <div className="text-xs text-[var(--oji-muted)] mb-2">أو اوصف اللي محتاجه والذكاء ينفّذه في نفس المكان بالمقاس المناسب:</div>
+              <textarea
+                value={insertDesc}
+                onChange={(e) => setInsertDesc(e.target.value)}
+                placeholder="مثال: بانر ترويجي لأفضل متجر إلكترونيات مع زر «تسوّق الآن»، أو قسم عرض 4 منتجات بالأسعار..."
+                className="w-full h-20 bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-xl px-3 py-2 text-sm outline-none focus:border-[var(--oji-primary)] resize-none mb-2"
+              />
+              <div className="flex items-center gap-2">
+                <VoiceButton onText={(t) => setInsertDesc((p) => (p ? p + " " + t : t))} />
+                <button
+                  onClick={() => startAiInsert("section")}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm text-[#06121f] bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] transition"
+                >
+                  🧩 أضف قسم بالذكاء
+                </button>
+                <button
+                  onClick={() => startAiInsert("banner")}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm text-[#06121f] bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] transition"
+                >
+                  🖼️ أضف بانر/صورة
+                </button>
+              </div>
+              <p className="text-[10px] text-[var(--oji-muted)] mt-2 leading-relaxed">
+                البانر يُنشأ بالذكاء (Nano Banana) بمقاس عريض متجاوب. القسم يُبنى بنفس ألوان موقعك وعرض الأقسام المجاورة تمامًا.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {insertBusy && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[var(--oji-surface)] border border-[var(--oji-border)] text-sm shadow-2xl">
+          {insertBusy}
+        </div>
+      )}
     </div>
   );
 }
