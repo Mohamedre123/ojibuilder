@@ -22,7 +22,8 @@ export default function Home() {
   const [cat, setCat] = useState("الكل");
   const [busy, setBusy] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [buildKind, setBuildKind] = useState<"site" | "app">("site");
+  const [buildKind, setBuildKind] = useState<"site" | "app" | "landing">("site");
+  const [prod, setProd] = useState({ name: "", price: "", oldPrice: "", currency: "ج.م", whatsapp: "", payUrl: "", logo: "" });
   const [designTheme, setDesignTheme] = useState("auto");
   const [showContact, setShowContact] = useState(false);
   const [waNumber, setWaNumber] = useState("");
@@ -32,6 +33,18 @@ export default function Home() {
 
   function persistOptions() {
     sessionStorage.setItem("oji:theme", designTheme);
+    sessionStorage.setItem("oji:kind", buildKind);
+    if (buildKind === "landing") {
+      const p: Record<string, string> = {};
+      (Object.keys(prod) as (keyof typeof prod)[]).forEach((k) => {
+        const v = String(prod[k] || "").trim();
+        if (v) p[k] = k === "whatsapp" ? v.replace(/[^\d]/g, "") : v;
+      });
+      if (Object.keys(p).length) sessionStorage.setItem("oji:product", JSON.stringify(p));
+      else sessionStorage.removeItem("oji:product");
+    } else {
+      sessionStorage.removeItem("oji:product");
+    }
     const contact: { whatsapp?: string; email?: string } = {};
     if (waNumber.trim()) contact.whatsapp = waNumber.replace(/[^\d]/g, "");
     if (contactEmail.trim()) contact.email = contactEmail.trim();
@@ -112,8 +125,10 @@ export default function Home() {
   }
 
   function launchText() {
-    if (!prompt.trim()) return;
-    go({ prompt: prompt.trim(), lang });
+    const base = prompt.trim();
+    // Landing pages can start from the product name alone.
+    if (!base && !(buildKind === "landing" && prod.name.trim())) return;
+    go({ prompt: base || `صفحة هبوط لمنتج: ${prod.name.trim()}`, lang });
   }
 
   async function launchUrl() {
@@ -234,6 +249,7 @@ export default function Home() {
             <div className="oji-up-2 flex items-center justify-center lg:justify-start gap-2 mb-3">
               <div className="flex rounded-xl border border-[var(--oji-border)] overflow-hidden">
                 <button onClick={() => setBuildKind("site")} className={`px-4 py-2 text-sm font-bold transition ${buildKind === "site" ? "bg-gradient-to-l from-[var(--oji-primary)] to-[var(--oji-primary-strong)] text-[#06121f]" : "text-[var(--oji-muted)] hover:text-white"}`}>🌐 موقع</button>
+                <button onClick={() => { setBuildKind("landing"); setEntry("text"); }} className={`px-4 py-2 text-sm font-bold transition ${buildKind === "landing" ? "bg-gradient-to-l from-[#f59e0b] to-[#f43f5e] text-[#06121f]" : "text-[var(--oji-muted)] hover:text-white"}`}>🛬 صفحة هبوط</button>
                 <button onClick={() => { setBuildKind("app"); setEntry("text"); }} className={`px-4 py-2 text-sm font-bold transition ${buildKind === "app" ? "bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f]" : "text-[var(--oji-muted)] hover:text-white"}`}>📱 تطبيق</button>
               </div>
             </div>
@@ -245,6 +261,7 @@ export default function Home() {
                   <button key={k} onClick={() => setEntry(k)} className={`px-4 py-1.5 rounded-lg text-sm transition ${entry === k ? "bg-[var(--oji-surface-2)] font-bold border border-[var(--oji-border)]" : "text-[var(--oji-muted)] hover:text-white"}`}>{label}</button>
                 ))}
               {buildKind === "app" && <span className="text-sm text-[var(--oji-muted)]">تطبيق كامل بقاعدة بيانات وتسجيل دخول 📱</span>}
+              {buildKind === "landing" && <span className="text-sm text-[var(--oji-muted)]">صفحة منتج واحدة عالية التحويل — معرض صور، سعر وخصم، طلب بواتساب أو دفع أونلاين 🛬</span>}
               {buildKind === "site" && (
                 <>
                   <input ref={siteFileRef} type="file" accept=".html,.htm,text/html" onChange={onSiteFile} className="hidden" />
@@ -265,6 +282,30 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            {/* landing-page product details */}
+            {buildKind === "landing" && (
+              <div className="oji-up-2 mb-4 space-y-2">
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5">
+                  <span className="text-xs text-[var(--oji-muted)] ms-1">الطابع:</span>
+                  {DESIGN_THEMES.map((t) => (
+                    <button key={t.id} onClick={() => setDesignTheme(t.id)} className={`px-2.5 py-1 rounded-lg text-xs transition border ${designTheme === t.id ? "border-[#f59e0b] bg-[#f59e0b]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white"}`}>{t.emoji} {t.title}</button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <input value={prod.name} onChange={(e) => setProd({ ...prod, name: e.target.value })} placeholder="اسم المنتج" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                  <input value={prod.price} onChange={(e) => setProd({ ...prod, price: e.target.value })} placeholder="السعر" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                  <input value={prod.oldPrice} onChange={(e) => setProd({ ...prod, oldPrice: e.target.value })} placeholder="السعر قبل الخصم" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                  <input value={prod.currency} onChange={(e) => setProd({ ...prod, currency: e.target.value })} placeholder="العملة" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input value={prod.whatsapp} onChange={(e) => setProd({ ...prod, whatsapp: e.target.value })} dir="ltr" placeholder="واتساب الطلبات: 201200000000" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                  <input value={prod.payUrl} onChange={(e) => setProd({ ...prod, payUrl: e.target.value })} dir="ltr" placeholder="رابط الدفع (اختياري): Paymob / Fawry / Tap / Stripe" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                  <input value={prod.logo} onChange={(e) => setProd({ ...prod, logo: e.target.value })} dir="ltr" placeholder="رابط اللوجو (اختياري)" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                </div>
+                <p className="text-[11px] text-[var(--oji-muted)]">كل الحقول اختيارية — املأ اللي عندك والباقي يتولّد باحتراف. صور المنتج تُنشأ بالذكاء، وتقدر تبدّلها أو تعدّل أي جزء بعد البناء.</p>
+              </div>
+            )}
 
             {/* design vibe + working-forms contact (site only) */}
             {buildKind === "site" && (
@@ -299,7 +340,7 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (buildKind === "app" ? launchApp() : launchText()); }} placeholder={buildKind === "app" ? "صف تطبيقك: مثال: تطبيق لإدارة المهام لكل مستخدم مع تسجيل دخول..." : entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
+                  <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (buildKind === "app" ? launchApp() : launchText()); }} placeholder={buildKind === "app" ? "صف تطبيقك: مثال: تطبيق لإدارة المهام لكل مستخدم مع تسجيل دخول..." : buildKind === "landing" ? "صف منتجك ومميزاته وجمهوره: مثال: ترابيزة خشب زان مودرن للصالة، صناعة يدوية، مقاومة للخدش، متاحة بـ3 مقاسات..." : entry === "image" ? "ملاحظات اختيارية عن التصميم المرفوع..." : "مثال: موقع لمطعم إيطالي يعرض المنيو ونموذج حجز طاولة..."} className="w-full h-24 bg-transparent resize-none outline-none px-3 py-2 text-base placeholder:text-[var(--oji-muted)]" />
                   <div className="flex items-center justify-between gap-2 px-2 pb-1">
                     <div className="flex items-center gap-2">
                       <VoiceButton onText={(t) => setPrompt((p) => (p ? p + " " + t : t))} />
@@ -307,6 +348,8 @@ export default function Home() {
                     </div>
                     {buildKind === "app" ? (
                       <button onClick={launchApp} disabled={!prompt.trim()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[var(--oji-accent)] to-[#7c5cff] text-[#06121f] disabled:opacity-40 transition">أنشئ التطبيق 📱</button>
+                    ) : buildKind === "landing" ? (
+                      <button onClick={launchText} disabled={!prompt.trim() && !prod.name.trim()} className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-l from-[#f59e0b] to-[#f43f5e] text-[#06121f] disabled:opacity-40 transition">أنشئ صفحة الهبوط 🛬</button>
                     ) : entry === "image" ? (
                       <>
                         <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />

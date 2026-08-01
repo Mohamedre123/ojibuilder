@@ -3,52 +3,89 @@
 import { useEffect, useRef, useState } from "react";
 
 // Speech-to-text mic button (Web Speech API). Renders nothing on browsers
-// that don't support it (Firefox / iOS Safari) — graceful fallback.
-// Stays listening until the user taps stop (auto-restarts on silence).
+// that don't support it. Browsers end recognition on silence (and Chrome caps
+// a session at ~60s), so we keep a "wanted" flag and restart until the user
+// taps stop — with a delay (immediate restart throws InvalidStateError) plus a
+// watchdog for restarts the browser swallows.
 export default function VoiceButton({ onText, className = "" }: { onText: (t: string) => void; className?: string }) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
-  const wantRef = useRef(false); // intended state: keep listening until user stops
+  const wantRef = useRef(false); // user intent: keep recording
+  const runRef = useRef(false); // engine actually running
+  const onTextRef = useRef(onText);
+  onTextRef.current = onText;
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
     setSupported(true);
+
     const r = new SR();
     r.lang = "ar-SA";
-    r.continuous = true; // don't stop after the first sentence
+    r.continuous = true;
     r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    r.onstart = () => {
+      runRef.current = true;
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
       let finalTxt = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript;
       }
-      if (finalTxt.trim()) onText(finalTxt.trim());
+      if (finalTxt.trim()) onTextRef.current(finalTxt.trim());
     };
     r.onend = () => {
-      // Browsers auto-end on silence; restart if the user still wants to record.
-      if (wantRef.current) {
-        try { r.start(); } catch { /* ignore */ }
-      } else {
-        setListening(false);
-      }
+      runRef.current = false;
+      if (wantRef.current) restart();
+      else setListening(false);
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onerror = (e: any) => {
-      if (e?.error === "no-speech" || e?.error === "aborted") return; // onend will restart
-      wantRef.current = false;
-      setListening(false);
+      const err = e?.error;
+      runRef.current = false;
+      // Fatal: permission/hardware. Anything else (no-speech, network,
+      // aborted) is transient — onend/watchdog will bring it back.
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        wantRef.current = false;
+        setListening(false);
+        alert("لم يُسمح باستخدام الميكروفون. فعّل إذن الميكروفون من إعدادات المتصفح لهذا الموقع.");
+      }
     };
+
+    function restart() {
+      if (!wantRef.current || runRef.current) return;
+      setTimeout(() => {
+        if (!wantRef.current || runRef.current) return;
+        try {
+          r.start();
+        } catch {
+          /* already starting — the watchdog retries */
+        }
+      }, 300);
+    }
+
     recRef.current = r;
+    // Watchdog: some browsers end the session without firing onend reliably.
+    const watchdog = setInterval(() => {
+      if (wantRef.current && !runRef.current) restart();
+    }, 2000);
+
     return () => {
       wantRef.current = false;
-      try { recRef.current?.abort(); } catch { /* ignore */ }
+      clearInterval(watchdog);
+      try {
+        r.onend = null;
+        r.abort();
+      } catch {
+        /* ignore */
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!supported) return null;
@@ -56,13 +93,14 @@ export default function VoiceButton({ onText, className = "" }: { onText: (t: st
   function toggle() {
     const r = recRef.current;
     if (!r) return;
-    if (listening) {
+    if (wantRef.current) {
       wantRef.current = false;
       try { r.stop(); } catch { /* ignore */ }
       setListening(false);
     } else {
       wantRef.current = true;
-      try { r.start(); setListening(true); } catch { /* ignore */ }
+      setListening(true);
+      try { r.start(); } catch { /* watchdog will start it */ }
     }
   }
 

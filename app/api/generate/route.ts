@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/anthropic";
 import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
-import { SHELL_SYSTEM_PROMPT, PAGE_SYSTEM_PROMPT, APP_SYSTEM_PROMPT, themeDirective, contactDirective } from "@/lib/prompts";
+import {
+  SHELL_SYSTEM_PROMPT,
+  PAGE_SYSTEM_PROMPT,
+  APP_SYSTEM_PROMPT,
+  LANDING_SYSTEM_PROMPT,
+  themeDirective,
+  contactDirective,
+  productDirective,
+} from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
 // 60s fits Vercel Hobby. On Pro you can raise this to 300 for richer output.
@@ -24,7 +32,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang, theme, contact } = await req.json();
+  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang, theme, contact, product } = await req.json();
   if (!prompt || typeof prompt !== "string" || prompt.length > LIMITS.MAX_PROMPT_CHARS) {
     return NextResponse.json({ error: "الوصف مطلوب أو طويل جدًا" }, { status: 400 });
   }
@@ -38,7 +46,11 @@ export async function POST(req: NextRequest) {
   let system: string;
   let userContent: string;
   let maxTokens = 12000;
-  if (step === "app") {
+  if (step === "landing") {
+    system = LANDING_SYSTEM_PROMPT;
+    userContent = `ابنِ صفحة هبوط احترافية عالية التحويل لهذا الطلب:\n\n${prompt}${productDirective(product)}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
+    maxTokens = 16000;
+  } else if (step === "app") {
     system = APP_SYSTEM_PROMPT;
     userContent = `ابنِ تطبيقًا كاملًا (Next.js + Supabase) لهذه الفكرة:\n\n${prompt}${langNote}`;
     maxTokens = 16000;

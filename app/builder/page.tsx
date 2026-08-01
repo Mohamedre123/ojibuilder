@@ -407,7 +407,15 @@ export default function Builder() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lastReqRef = useRef<LastReq | null>(null);
-  const seedRef = useRef<{ prompt: string; image: ImageSeed | null; lang: string; theme?: string; contact?: { whatsapp?: string; email?: string } | null }>({ prompt: "", image: null, lang: "ar" });
+  const seedRef = useRef<{
+    prompt: string;
+    image: ImageSeed | null;
+    lang: string;
+    theme?: string;
+    contact?: { whatsapp?: string; email?: string } | null;
+    kind?: string;
+    product?: Record<string, string> | null;
+  }>({ prompt: "", image: null, lang: "ar" });
   const htmlRef = useRef("");
   const histRef = useRef<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -550,10 +558,18 @@ export default function Builder() {
     } catch {
       contact = null;
     }
-    seedRef.current = { prompt, image, lang, theme, contact };
+    const kind = sessionStorage.getItem("oji:kind") || "site";
+    let product: Record<string, string> | null = null;
+    try {
+      product = JSON.parse(sessionStorage.getItem("oji:product") || "null");
+    } catch {
+      product = null;
+    }
+    seedRef.current = { prompt, image, lang, theme, contact, kind, product };
     setMessages([{ role: "user", text: image ? `🖼️ بناء من صورة — ${prompt}` : prompt }]);
-    // For image-based builds, skip clarification (the image carries the intent).
-    if (image) generateSite();
+    // Image builds carry their intent in the picture; landing pages already
+    // collected the product details up front — both skip clarification.
+    if (image || kind === "landing") generateSite();
     else startClarify(prompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -685,16 +701,22 @@ export default function Builder() {
 
   async function generateSite() {
     lastReqRef.current = { kind: "site" };
-    const { prompt, image, lang, theme, contact } = seedRef.current;
+    const { prompt, image, lang, theme, contact, kind, product } = seedRef.current;
+    const isLanding = kind === "landing";
     const ac = beginRequest();
     const timeout = setTimeout(() => ac.abort(), 290_000);
     try {
-      setMessages((m) => [...m, { role: "system", text: "⏳ أبني الهيكل والصفحة الرئيسية..." }]);
+      setMessages((m) => [
+        ...m,
+        { role: "system", text: isLanding ? "⏳ أبني صفحة الهبوط الاحترافية..." : "⏳ أبني الهيكل والصفحة الرئيسية..." },
+      ]);
       let lastP = 0;
       let totIn = 0;
       let totOut = 0;
       const shellRaw = await streamText(
-        { prompt, model, step: "shell", image, lang, theme, contact },
+        isLanding
+          ? { prompt, model, step: "landing", image, lang, theme, contact, product }
+          : { prompt, model, step: "shell", image, lang, theme, contact },
         ac.signal,
         (buf) => {
           const c = cleanHtml(buf);
@@ -713,7 +735,7 @@ export default function Builder() {
       setTab("preview");
       sessionStorage.setItem("oji:html", current);
 
-      const pages = parsePages(current);
+      const pages = isLanding ? [] : parsePages(current);
       const toFill = pages.filter((p) => isSectionEmpty(current, p.id));
       for (const pg of toFill) {
         setMessages((m) => [...m, { role: "system", text: `⏳ أبني صفحة: ${pg.title}...` }]);
@@ -736,7 +758,7 @@ export default function Builder() {
       commit(current);
       setMessages((m) => [
         ...m,
-        { role: "system", text: "تم بناء موقعك بالكامل ✓ اطلب أي تعديل، أو فعّل التعديل اليدوي، أو انشره." },
+        { role: "system", text: isLanding ? "تمّت صفحة الهبوط ✓ اطلب أي تعديل، أو فعّل التعديل اليدوي، أو انشرها." : "تم بناء موقعك بالكامل ✓ اطلب أي تعديل، أو فعّل التعديل اليدوي، أو انشره." },
         { role: "system", text: `💡 استهلاك التوليد: ${estimateCost(totIn, totOut, model)}` },
       ]);
     } catch (e) {
