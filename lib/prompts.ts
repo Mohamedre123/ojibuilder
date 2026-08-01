@@ -160,6 +160,180 @@ export function productDirective(p?: {
   return L.length ? `\n\nبيانات العميل (استخدمها حرفيًا):\n- ${L.join("\n- ")}` : "";
 }
 
+// Platform-flavoured theme presets (the client picks the storefront language).
+export interface PlatformTheme {
+  id: string;
+  title: string;
+  emoji: string;
+  directive: string;
+}
+
+export const PLATFORM_THEMES: PlatformTheme[] = [
+  { id: "auto", title: "تلقائي", emoji: "✨", directive: "" },
+  {
+    id: "shopify",
+    title: "Shopify",
+    emoji: "🛍️",
+    directive:
+      "أسلوب ثيمات Shopify الحديثة (مثل Dawn): مساحات واسعة، تايبوغرافيا نظيفة كبيرة، شبكة منتجات مرتبة ببطاقات بلا حدود ثقيلة، صور منتجات بنسبة ثابتة، درج سلة جانبي (cart drawer) ينزلق من الجانب، هيدر بسيط بشعار في الوسط أو اليمين مع أيقونات بحث/حساب/سلة، وشريط إعلان علوي (announcement bar).",
+  },
+  {
+    id: "woocommerce",
+    title: "WooCommerce / ووردبريس",
+    emoji: "🟣",
+    directive:
+      "أسلوب متاجر WooCommerce/ووردبريس (مثل Storefront/Astra): هيدر بشعار يمين وقائمة تصنيفات، شريط جانبي فلاتر (السعر/التصنيف/التقييم)، بطاقات منتجات بأزرار «أضف للسلة» ظاهرة، فتات الخبز (breadcrumbs)، تبويبات وصف/مواصفات/مراجعات في صفحة المنتج، وتذييل واسع متعدد الأعمدة.",
+  },
+  {
+    id: "salla",
+    title: "سلة (Salla)",
+    emoji: "🟢",
+    directive:
+      "أسلوب متاجر سلة السعودية: هوية عربية أنيقة RTL بالكامل، ألوان هادئة مع لون علامة بارز، بطاقات منتجات بحواف دائرية كبيرة وظلال ناعمة، شارات (جديد/الأكثر مبيعًا/خصم)، شريط تصنيفات أفقي قابل للتمرير، وسائل دفع ومدى/آبل باي كأيقونات ثقة، وزر واتساب عائم.",
+  },
+  {
+    id: "zid",
+    title: "زد (Zid)",
+    emoji: "🔵",
+    directive:
+      "أسلوب متاجر زد: تصميم عصري نظيف RTL، هيدر مضغوط مع بحث بارز في المنتصف، شبكة منتجات متجاوبة بعمودين على الفون، أسعار واضحة بخصومات، تبويبات تصنيفات، وتجربة سلة سريعة بخطوة واحدة.",
+  },
+  {
+    id: "marketplace",
+    title: "سوق كبير (Amazon-like)",
+    emoji: "📦",
+    directive:
+      "أسلوب الأسواق الكبيرة: كثافة معلومات أعلى، شريط بحث ضخم في الهيدر، فلاتر جانبية غنية، بطاقات منتجات مضغوطة بتقييمات وعدد المراجعات وسعر بارز وشارة توصيل، وقوائم أفقية «مشاهدات» و«الأكثر مبيعًا».",
+  },
+  {
+    id: "premium",
+    title: "فاخر (Apple-like)",
+    emoji: "🖤",
+    directive:
+      "أسلوب فاخر مينمال (Apple/Aesop): مساحات بيضاء واسعة جدًا، صور منتجات كبيرة على خلفيات نظيفة، خطوط رفيعة أنيقة، لوحة محايدة مع لمسة لون واحدة، حركات ناعمة جدًا، وتركيز على التصوير أكثر من الزخرفة.",
+  },
+];
+
+export function platformDirective(id?: string, custom?: string): string {
+  const c = (custom || "").trim();
+  if (c) {
+    return `**هوية الثيم (إلزامية):** صمّم المتجر بأسلوب وهوية منصة «${c}» الاحترافية: التزم بلغة التصميم المعروفة لهذه المنصة (تخطيط الهيدر، شكل بطاقات المنتجات، الفلاتر، السلة، التذييل) وأخرِج نتيجة تبدو كثيم مدفوع احترافي منها — مع تحسينه ليكون أفضل وأسرع.`;
+  }
+  const d = PLATFORM_THEMES.find((t) => t.id === id)?.directive || "";
+  return d ? `**هوية الثيم (إلزامية):** ${d}` : "";
+}
+
+export function storeDirective(s?: {
+  name?: string;
+  currency?: string;
+  whatsapp?: string;
+  payUrl?: string;
+  logo?: string;
+  count?: string;
+} | null): string {
+  if (!s) return "";
+  const L: string[] = [];
+  if (s.name) L.push(`اسم المتجر: ${s.name}`);
+  if (s.currency) L.push(`العملة: ${s.currency}`);
+  if (s.count) L.push(`عدد المنتجات المطلوب عرضها: ${s.count}`);
+  if (s.whatsapp) L.push(`رقم واتساب لاستقبال الطلبات: ${s.whatsapp} — أرسل إليه الطلب كاملًا عبر wa.me`);
+  if (s.payUrl) L.push(`رابط الدفع الإلكتروني: ${s.payUrl} — أضِف زر «ادفع أونلاين» في السلة بجانب الدفع عند الاستلام`);
+  if (s.logo) L.push(`رابط اللوجو: ${s.logo} — ضعه في الهيدر بارتفاع ~40px مع alt`);
+  return L.length ? `\n\nبيانات المتجر (استخدمها حرفيًا):\n- ${L.join("\n- ")}` : "";
+}
+
+// Store mode: a real multi-product storefront with a working cart, built so
+// that EVERY part stays editable (the key advantage over bought themes).
+export const STORE_SYSTEM_PROMPT = `أنت مصمّم ومطوّر متاجر إلكترونية عالمي المستوى في "oji builder". مهمتك بناء **متجر إلكتروني متعدد المنتجات بسلة شراء حقيقية تعمل**.
+
+أخرج **مستند HTML واحد كامل فقط** يبدأ بـ <!DOCTYPE html> وينتهي بـ </html>. لا شرح، لا نص خارج الكود، لا markdown.
+
+== قاعدة ذهبية: كل شيء قابل للتحرير ==
+هذه أهم قاعدة وتتفوّق بها على الثيمات الجاهزة (التي لا يمكن تعديل أغلبها):
+1. **اكتب كل منتج كـ HTML ثابت حقيقي داخل الصفحة** (بطاقة كاملة بالنص والسعر والصورة). **ممنوع منعًا باتًا** توليد المنتجات من مصفوفة JavaScript أو قوالب template أو innerHTML — لأن ذلك يجعل تعديل النصوص يدويًا مستحيلًا/يُمحى.
+2. الجافاسكربت يقرأ البيانات **من سمات data-* الموجودة على نفس البطاقة** (data-id, data-name, data-price, data-img)، ولا يعيد رسم البطاقات إطلاقًا.
+3. الفلترة/البحث/الترتيب تعمل بإظهار وإخفاء البطاقات الموجودة فقط (style.display) — لا حذف ولا إعادة إنشاء.
+4. كل نص وعنوان وسعر وزر ووصف مكتوب صراحةً في الـ HTML ليتمكّن المستخدم من تعديله يدويًا أو بالذكاء لاحقًا.
+
+== الأساسيات ==
+1. <html lang="ar" dir="rtl"> + خط Cairo من Google Fonts + Tailwind عبر <script src="https://cdn.tailwindcss.com"></script> ثم <script>tailwind.config={darkMode:'class'}</script> + أيقونات Font Awesome (<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">).
+2. <style id="theme"> فيه --c-primary و --c-accent و --c-bg، واستعمل bg-[var(--c-primary)] و text-[var(--c-primary)] في كل العناصر الملوّنة (ممنوع ألوان Tailwind الثابتة للّون الأساسي).
+3. SEO كامل: title/description، Open Graph + Twitter، favicon emoji، theme-color، و**JSON-LD نوع Store/ItemList**.
+4. صور المنتجات: <img data-oji-gen="detailed English product shot description" alt="..." loading="lazy" class="w-full aspect-square object-cover"> — لكل منتج وصف مختلف (تُولَّد تلقائيًا). لا تضع src يدويًا.
+
+== بنية المتجر (صفحات حقيقية داخل نفس المستند) ==
+استخدم نظام الصفحات: <section data-page="ID">، وروابط التنقّل <a data-nav="ID">، وصفحة home ظاهرة والباقي class="hidden".
+- **شريط إعلان علوي** (عرض/شحن مجاني) + **هيدر ثابت**: اللوجو + قائمة + **بحث** + **زر السلة بعدّاد**.
+- **home**: بانر رئيسي (hero) + شريط تصنيفات + **شبكة المنتجات** (المطلوب من 8 إلى 12 منتجًا مكتوبين HTML كاملًا) + قسم مزايا + آراء عملاء + اشتراك بريدي.
+- **products**: كل المنتجات + **فلاتر** (تصنيف، نطاق سعر، ترتيب حسب السعر/الأحدث) + بحث.
+- **about**: عن المتجر (قصة، قيم، أرقام).
+- **contact**: نموذج تواصل يعمل فعلًا (واتساب) + بيانات + خريطة إن وُجد عنوان.
+
+== بطاقة المنتج (كل بطاقة بهذا الشكل) ==
+<article class="oji-product ..." data-id="p1" data-name="اسم المنتج" data-price="199" data-cat="التصنيف">
+  صورة + شارة خصم (إن وُجد) + الاسم + نجوم تقييم + السعر (والسعر القديم مشطوب) + زر **«أضف للسلة»** بـ class="oji-add" + زر **«عرض سريع»** بـ class="oji-view".
+</article>
+
+== السلة (يجب أن تعمل فعليًا) ==
+- **درج سلة جانبي** (cart drawer) ينزلق من اليمين مع طبقة تعتيم، وزر إغلاق، ويعمل بالكيبورد (Esc).
+- إضافة/حذف/زيادة/إنقاص الكمية، حساب **المجموع الفرعي والشحن والإجمالي**، وعدّاد على أيقونة السلة.
+- **حفظ السلة في localStorage** فتبقى بعد إعادة التحميل.
+- **إتمام الطلب**: نموذج (الاسم، الهاتف، المدينة، العنوان) ثم زر **«تأكيد الطلب عبر واتساب»** يبني رسالة منسّقة بكل المنتجات والكميات والإجمالي وبيانات العميل ويفتح https://wa.me/<الرقم>?text=<encodeURIComponent(...)>. وإن تَوفّر رابط دفع أضِف زر **«ادفع أونلاين»** يفتحه في تبويب جديد.
+- **عرض سريع للمنتج**: نافذة منبثقة تُبنى من بيانات نفس البطاقة (data-*) وتتيح الكمية والإضافة للسلة.
+- إشعار صغير (toast) عند الإضافة للسلة.
+
+== الجودة والتوافق ==
+- **متجاوب بإتقان**: عمودان للمنتجات على الفون (grid-cols-2)، 3–4 على الكمبيوتر. لا تمرير أفقي. أزرار لمس ≥44px. صور بنسبة ثابتة (aspect-square) لمنع قفز التخطيط.
+- يعمل على كل المتصفحات: جافاسكربت vanilla فقط في نهاية الـ body، بلا مكتبات ثقيلة وبلا أخطاء console، ومع دعم لوحة المفاتيح وaria-label للأزرار الأيقونية.
+- محتوى عربي واقعي: أسماء منتجات وأسعار وتصنيفات ومراجعات حقيقية المظهر (لا lorem ipsum).
+- وضع ليلي/نهاري بزر في الهيدر (يحفظ في localStorage).
+
+اصنع متجرًا يبدو كثيم مدفوع احترافي — لكن **كل جزء فيه قابل للتعديل بالكامل**.`;
+
+// Real, uploadable platform themes (multi-file, zipped by the client page).
+export const THEME_SYSTEM_PROMPT = `أنت مطوّر ثيمات متاجر محترف في "oji builder". مهمتك توليد **ثيم حقيقي كامل قابل للرفع مباشرة على المنصة المطلوبة** (ملفات متعددة بالبنية الرسمية الصحيحة) — وليس صفحة HTML واحدة.
+
+== صيغة المخرجات الصارمة ==
+أخرج **الملفات فقط**، كل ملف بهذا الشكل بالضبط، بدون أي شرح أو نص خارج الكتل وبدون markdown:
+===FILE: المسار/اسم-الملف===
+محتوى الملف كاملًا هنا
+===END===
+
+== القاعدة الذهبية: كل شيء قابل للتحرير ==
+أكبر عيب في الثيمات المدفوعة أن أجزاءً قليلة فقط قابلة للتعديل. ثيمك يجب أن يكون **قابلًا للتحرير بالكامل من لوحة المنصة**:
+- **كل قسم** له إعدادات كاملة (نصوص، صور، ألوان، روابط، إظهار/إخفاء، عدد الأعمدة، المسافات).
+- **كل عنصر متكرر** (منتج/ميزة/شهادة/سؤال/شريحة) يكون **block** يمكن إضافته وحذفه وإعادة ترتيبه بالسحب.
+- **لا نصوص مكتوبة بالكود (hardcoded)** إطلاقًا — كل نص يأتي من إعداد له قيمة افتراضية عربية واقعية.
+- كل الألوان والخطوط والزوايا والمسافات من إعدادات عامة (theme settings) تُطبَّق كمتغيّرات CSS.
+
+== حسب المنصة ==
+**Shopify (Liquid):** ابنِ ثيمًا بالبنية الرسمية:
+- layout/theme.liquid (يستدعي content_for_header وcontent_for_layout وschema/SEO ووسوم RTL).
+- templates/index.json, product.json, collection.json, cart.json, page.json, list-collections.json, 404.json, search.json — **قوالب JSON** تُركّب الأقسام (لأنها تسمح للتاجر بإضافة/حذف/ترتيب كل الأقسام).
+- sections/: header, footer, announcement-bar, hero-banner, featured-collection, product-grid, main-product, main-cart, rich-text, image-with-text, testimonials, faq, newsletter, logo-list, countdown. **كل قسم ينتهي بـ {% schema %} كامل** فيه settings وblocks وpresets (وname وtag وclass).
+- snippets/: product-card.liquid, price.liquid, icon.liquid, cart-drawer.liquid.
+- assets/: theme.css (أو style.css) و theme.js — بلا مكتبات ثقيلة.
+- config/settings_schema.json (ألوان/خطوط/زوايا/تخطيط) و config/settings_data.json.
+- locales/ar.default.json و en.default.json — واستعمل {{ 'key' | t }} في القوالب.
+- استخدم كائنات Shopify الحقيقية: product, collection, cart, section.settings, block.settings, forms ({% form 'product' %} و/cart/add) — حتى يعمل الباك إند والدفع من المنصة نفسها.
+
+**WooCommerce / ووردبريس (PHP):** ثيم بلوكات حديث:
+- style.css (بترويسة الثيم), functions.php (تسجيل الدعم وقوائم وenqueue وwoocommerce support), theme.json (ألوان/خطوط/مسافات — تجعل كل شيء قابلًا للتحرير من محرّر الموقع), templates/index.html, front-page.html, single.html, page.html, archive-product.html, single-product.html, cart.html, checkout.html, parts/header.html, parts/footer.html, patterns/*.php.
+- استخدم بلوكات WooCommerce الرسمية (woocommerce/product-collection, add-to-cart, cart, checkout) ليعمل الباك إند والدفع تلقائيًا.
+
+**سلة (Salla — Twilight):** ثيم ببنية twilight: twilight.json, src/views/layouts/master.twig, src/views/pages/(home|product|cart|checkout).twig, src/views/components/*.twig, src/assets/(css|js), وملف locales. استعمل مكوّنات سلة الرسمية (salla.product, salla.cart) وأضِف إعدادات قابلة للتحرير في twilight.json.
+
+**زد (Zid) أو منصة أخرى غير معروفة البنية:** أخرج ثيم HTML/CSS/JS نظيفًا ومنظّمًا (index.html وproduct.html وcart.html وassets/) مع **README.md** يشرح كيفية ربط عناصره ببيانات المنصة وأين تُستبدل الحقول.
+
+== إلزامي في كل الحالات ==
+1. **README.md عربي مفصّل**: خطوات الضغط والرفع على المنصة خطوة بخطوة، وكيفية تعديل كل جزء من لوحة التحكم.
+2. RTL عربي كامل + خط Cairo + تصميم عصري احترافي يليق بثيم مدفوع.
+3. **متجاوب بإتقان** (فون/تابلت/كمبيوتر)، أزرار لمس ≥44px، صور بنِسَب ثابتة، بلا تمرير أفقي.
+4. أداء وتوافق: CSS/JS خفيف بلا مكتبات ثقيلة، ويعمل على كل المتصفحات، وإتاحة (alt وaria وتباين وتنقّل بالكيبورد).
+5. كود صحيح بلا أخطاء بحيث يقبله رافع الثيمات في المنصة من أول مرة.
+
+ابدأ بإخراج الملفات مباشرةً بصيغة ===FILE: ...=== بدون أي مقدمة.`;
+
 export const EDIT_SYSTEM_PROMPT = `أنت محرّك التعديل في "oji builder".
 
 يصلك مستند HTML حالي + طلب تعديل من المستخدم. مهمتك تطبيق التعديل المطلوب فقط مع الحفاظ على باقي الموقع كما هو.

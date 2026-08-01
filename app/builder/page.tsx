@@ -415,6 +415,9 @@ export default function Builder() {
     contact?: { whatsapp?: string; email?: string } | null;
     kind?: string;
     product?: Record<string, string> | null;
+    store?: Record<string, string> | null;
+    platform?: string;
+    platformCustom?: string;
   }>({ prompt: "", image: null, lang: "ar" });
   const htmlRef = useRef("");
   const histRef = useRef<{ stack: string[]; idx: number }>({ stack: [], idx: -1 });
@@ -565,11 +568,28 @@ export default function Builder() {
     } catch {
       product = null;
     }
-    seedRef.current = { prompt, image, lang, theme, contact, kind, product };
+    let store: Record<string, string> | null = null;
+    try {
+      store = JSON.parse(sessionStorage.getItem("oji:store") || "null");
+    } catch {
+      store = null;
+    }
+    seedRef.current = {
+      prompt,
+      image,
+      lang,
+      theme,
+      contact,
+      kind,
+      product,
+      store,
+      platform: sessionStorage.getItem("oji:platform") || "auto",
+      platformCustom: sessionStorage.getItem("oji:platformCustom") || "",
+    };
     setMessages([{ role: "user", text: image ? `🖼️ بناء من صورة — ${prompt}` : prompt }]);
     // Image builds carry their intent in the picture; landing pages already
     // collected the product details up front — both skip clarification.
-    if (image || kind === "landing") generateSite();
+    if (image || kind === "landing" || kind === "store") generateSite();
     else startClarify(prompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -702,7 +722,9 @@ export default function Builder() {
   async function generateSite() {
     lastReqRef.current = { kind: "site" };
     const { prompt, image, lang, theme, contact, kind, product } = seedRef.current;
-    const isLanding = kind === "landing";
+    const isStore = kind === "store";
+    // Landing pages and storefronts are both single-pass documents.
+    const isLanding = kind === "landing" || isStore;
     const ac = beginRequest();
     const timeout = setTimeout(() => ac.abort(), 290_000);
     try {
@@ -714,9 +736,11 @@ export default function Builder() {
       let totIn = 0;
       let totOut = 0;
       const shellRaw = await streamText(
-        isLanding
-          ? { prompt, model, step: "landing", image, lang, theme, contact, product }
-          : { prompt, model, step: "shell", image, lang, theme, contact },
+        isStore
+          ? { prompt, model, step: "store", image, lang, theme, contact, store: seedRef.current.store, platform: seedRef.current.platform, platformCustom: seedRef.current.platformCustom }
+          : isLanding
+            ? { prompt, model, step: "landing", image, lang, theme, contact, product, platform: seedRef.current.platform, platformCustom: seedRef.current.platformCustom }
+            : { prompt, model, step: "shell", image, lang, theme, contact },
         ac.signal,
         (buf) => {
           const c = cleanHtml(buf);

@@ -6,9 +6,13 @@ import {
   PAGE_SYSTEM_PROMPT,
   APP_SYSTEM_PROMPT,
   LANDING_SYSTEM_PROMPT,
+  STORE_SYSTEM_PROMPT,
+  THEME_SYSTEM_PROMPT,
   themeDirective,
   contactDirective,
   productDirective,
+  platformDirective,
+  storeDirective,
 } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang, theme, contact, product } = await req.json();
+  const { prompt, model: reqModel, step, pageId, pageTitle, context, image, lang, theme, contact, product, store, platform, platformCustom } = await req.json();
   if (!prompt || typeof prompt !== "string" || prompt.length > LIMITS.MAX_PROMPT_CHARS) {
     return NextResponse.json({ error: "الوصف مطلوب أو طويل جدًا" }, { status: 400 });
   }
@@ -46,9 +50,24 @@ export async function POST(req: NextRequest) {
   let system: string;
   let userContent: string;
   let maxTokens = 12000;
-  if (step === "landing") {
+  const platNote = platformDirective(platform, platformCustom) ? "\n\n" + platformDirective(platform, platformCustom) : "";
+  if (step === "theme") {
+    system = THEME_SYSTEM_PROMPT;
+    const target = (platformCustom || "").trim() || platform || "shopify";
+    userContent = `ابنِ ثيمًا احترافيًا كامل الملفات قابلًا للرفع مباشرة على منصة: **${target}**.
+
+وصف المتجر/الهوية المطلوبة:
+${prompt}${storeDirective(store)}${platNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${langNote}
+
+تذكير حاسم: كل قسم بإعدادات وblocks كاملة قابلة للإضافة والحذف والترتيب، ولا نصوص مكتوبة في الكود، ومع README.md عربي لخطوات الرفع.`;
+    maxTokens = 16000;
+  } else if (step === "store") {
+    system = STORE_SYSTEM_PROMPT;
+    userContent = `ابنِ متجرًا إلكترونيًا كاملًا بسلة شراء تعمل لهذا الطلب:\n\n${prompt}${storeDirective(store)}${platNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
+    maxTokens = 16000;
+  } else if (step === "landing") {
     system = LANDING_SYSTEM_PROMPT;
-    userContent = `ابنِ صفحة هبوط احترافية عالية التحويل لهذا الطلب:\n\n${prompt}${productDirective(product)}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
+    userContent = `ابنِ صفحة هبوط احترافية عالية التحويل لهذا الطلب:\n\n${prompt}${productDirective(product)}${platNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
     maxTokens = 16000;
   } else if (step === "app") {
     system = APP_SYSTEM_PROMPT;
