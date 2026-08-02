@@ -5,6 +5,31 @@ import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
 import { authEnabled } from "@/lib/supabase/config";
 
+// Supabase can surface opaque failures (paused project, wrong URL, CORS,
+// blocked network) as an error whose message is literally "{}" — translate
+// those into something the user can act on instead of showing raw JSON.
+function authError(e: unknown, fallback: string): string {
+  const err = e as { message?: string; status?: number; name?: string } | null;
+  const raw = (err?.message || "").trim();
+  const status = err?.status;
+  const name = err?.name || "";
+
+  if (!raw || raw === "{}" || raw === "[object Object]" || /failed to fetch|networkerror|load failed/i.test(raw) || name === "AuthRetryableFetchError") {
+    return "تعذّر الاتصال بخادم الحسابات (Supabase). تأكد أن مشروع Supabase نشط وغير متوقف، وأن NEXT_PUBLIC_SUPABASE_URL و NEXT_PUBLIC_SUPABASE_ANON_KEY مضبوطان بشكل صحيح في إعدادات النشر، ثم أعِد النشر (Redeploy).";
+  }
+  if (status === 429 || /rate limit|too many/i.test(raw)) {
+    return "تم إرسال رسائل كثيرة خلال وقت قصير. انتظر دقائق ثم أعِد المحاولة. (بريد Supabase الافتراضي محدود جدًا — يُفضّل ضبط SMTP مخصّص مثل Resend.)";
+  }
+  if (/smtp|sending|email.*(failed|error)|error sending/i.test(raw)) {
+    return "فشل إرسال البريد من Supabase. اضبط مزوّد بريد (SMTP) من: Authentication → Emails/SMTP، أو فعّل Email provider، ثم أعِد المحاولة.";
+  }
+  if (/signups? not allowed|disabled/i.test(raw)) {
+    return "التسجيل بالبريد معطّل في Supabase. فعّله من: Authentication → Providers → Email.";
+  }
+  if (/invalid|expired|token/i.test(raw)) return "الرمز غير صحيح أو انتهت صلاحيته — اطلب رمزًا جديدًا.";
+  return raw || fallback;
+}
+
 export default function Login() {
   const router = useRouter();
   const [step, setStep] = useState<"email" | "code">("email");
@@ -35,7 +60,8 @@ export default function Login() {
       if (error) throw error;
       setStep("code");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر إرسال الرمز");
+      console.error("OTP send failed:", e);
+      setError(authError(e, "تعذّر إرسال الرمز"));
     } finally {
       setBusy(false);
     }
@@ -56,7 +82,8 @@ export default function Login() {
       try { localStorage.setItem("oji:lastActive", String(Date.now())); } catch {}
       router.replace(returnTo);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "رمز غير صحيح");
+      console.error("OTP verify failed:", e);
+      setError(authError(e, "رمز غير صحيح"));
     } finally {
       setBusy(false);
     }

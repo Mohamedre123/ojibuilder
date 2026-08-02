@@ -338,8 +338,8 @@ export default function Home() {
                     <input value={store.logo} onChange={(e) => setStore({ ...store, logo: e.target.value })} dir="ltr" placeholder="رابط اللوجو (اختياري)" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#10b981]" />
                   )}
                 </div>
-                {buildKind === "store" && (
-                  <input value={store.payUrl} onChange={(e) => setStore({ ...store, payUrl: e.target.value })} dir="ltr" placeholder="رابط الدفع (اختياري): Paymob / Fawry / Tap / Stripe" className="w-full bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#10b981]" />
+                {(buildKind === "store" || buildKind === "theme") && (
+                  <input value={store.payUrl} onChange={(e) => setStore({ ...store, payUrl: e.target.value })} dir="ltr" placeholder="طريقة الدفع/الطلب (اختياري): رابط دفع · واتساب · مفتاح بوابة (Stripe/Paymob/Tap) · IBAN" className="w-full bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#10b981]" />
                 )}
                 <p className="text-[11px] text-[var(--oji-muted)]">
                   {buildKind === "store"
@@ -366,7 +366,7 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input value={prod.whatsapp} onChange={(e) => setProd({ ...prod, whatsapp: e.target.value })} dir="ltr" placeholder="واتساب الطلبات: 201200000000" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
-                  <input value={prod.payUrl} onChange={(e) => setProd({ ...prod, payUrl: e.target.value })} dir="ltr" placeholder="رابط الدفع (اختياري): Paymob / Fawry / Tap / Stripe" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
+                  <input value={prod.payUrl} onChange={(e) => setProd({ ...prod, payUrl: e.target.value })} dir="ltr" placeholder="طريقة الدفع/الطلب (اختياري): رابط دفع أو واتساب أو مفتاح بوابة أو IBAN" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
                   <input value={prod.logo} onChange={(e) => setProd({ ...prod, logo: e.target.value })} dir="ltr" placeholder="رابط اللوجو (اختياري)" className="bg-[var(--oji-surface-2)] border border-[var(--oji-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f59e0b]" />
                 </div>
                 <p className="text-[11px] text-[var(--oji-muted)]">كل الحقول اختيارية — املأ اللي عندك والباقي يتولّد باحتراف. صور المنتج تُنشأ بالذكاء، وتقدر تبدّلها أو تعدّل أي جزء بعد البناء.</p>

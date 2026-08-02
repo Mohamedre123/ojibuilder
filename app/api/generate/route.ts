@@ -13,6 +13,7 @@ import {
   productDirective,
   platformDirective,
   storeDirective,
+  checkoutDirective,
 } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
@@ -51,23 +52,27 @@ export async function POST(req: NextRequest) {
   let userContent: string;
   let maxTokens = 12000;
   const platNote = platformDirective(platform, platformCustom) ? "\n\n" + platformDirective(platform, platformCustom) : "";
+  // Whatever the client pasted (checkout URL, WhatsApp, gateway key, IBAN…)
+  // becomes a real working action button in every build mode.
+  const payValue = (product?.payUrl || store?.payUrl || contact?.whatsapp || "") as string;
+  const payNote = "\n\n" + checkoutDirective(payValue);
   if (step === "theme") {
     system = THEME_SYSTEM_PROMPT;
     const target = (platformCustom || "").trim() || platform || "shopify";
     userContent = `ابنِ ثيمًا احترافيًا كامل الملفات قابلًا للرفع مباشرة على منصة: **${target}**.
 
 وصف المتجر/الهوية المطلوبة:
-${prompt}${storeDirective(store)}${platNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${langNote}
+${prompt}${storeDirective(store)}${platNote}${payNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${langNote}
 
 تذكير حاسم: كل قسم بإعدادات وblocks كاملة قابلة للإضافة والحذف والترتيب، ولا نصوص مكتوبة في الكود، ومع README.md عربي لخطوات الرفع.`;
     maxTokens = 16000;
   } else if (step === "store") {
     system = STORE_SYSTEM_PROMPT;
-    userContent = `ابنِ متجرًا إلكترونيًا كاملًا بسلة شراء تعمل لهذا الطلب:\n\n${prompt}${storeDirective(store)}${platNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
+    userContent = `ابنِ متجرًا إلكترونيًا كاملًا بسلة شراء تعمل لهذا الطلب:\n\n${prompt}${storeDirective(store)}${platNote}${payNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
     maxTokens = 16000;
   } else if (step === "landing") {
     system = LANDING_SYSTEM_PROMPT;
-    userContent = `ابنِ صفحة هبوط احترافية عالية التحويل لهذا الطلب:\n\n${prompt}${productDirective(product)}${platNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
+    userContent = `ابنِ صفحة هبوط احترافية عالية التحويل لهذا الطلب:\n\n${prompt}${productDirective(product)}${platNote}${payNote}${themeDirective(theme) ? "\n\n" + themeDirective(theme) : ""}${contactNote}${langNote}`;
     maxTokens = 16000;
   } else if (step === "app") {
     system = APP_SYSTEM_PROMPT;
@@ -80,7 +85,7 @@ ${prompt}${storeDirective(store)}${platNote}${themeDirective(theme) ? "\n\n" + t
     system = SHELL_SYSTEM_PROMPT;
     userContent = image
       ? `أعد إنشاء التصميم الظاهر في الصورة المرفقة **طِبق الأصل قدر الإمكان** كصفحة ويب حيّة: التزِم بنفس التخطيط (layout)، والأقسام وترتيبها، والألوان الدقيقة، والمسافات، وأنماط الخطوط، وأشكال الأزرار والبطاقات، والنصوص الظاهرة، والأيقونات/الصور النائبة في أماكنها. اجعلها متجاوبة وعالية الجودة وبنفس روح التصميم بدقة، ولا تضِف عناصر غير موجودة في الصورة.${prompt && prompt.trim() ? `\n\nثم طبّق هذه التعديلات المطلوبة فوق التصميم الأصلي: ${prompt}` : ""}${contactNote}${langNote}`
-      : `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}${themeNote}${contactNote}${langNote}`;
+      : `ابنِ هيكل الموقع والصفحة الرئيسية لهذا الطلب:\n\n${prompt}${themeNote}${contactNote}${payValue ? payNote : ""}${langNote}`;
   }
 
   type Block =
