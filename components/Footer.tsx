@@ -8,6 +8,21 @@ export default function Footer() {
   return (
     <footer className="border-t border-[var(--oji-border)] mt-12">
       <div className="oji-reveal max-w-5xl mx-auto px-6 py-10">
+        {/* Oji Agency (parent org) promo */}
+        <a
+          href="/oji-agency"
+          className="group flex flex-col sm:flex-row items-center gap-3 sm:gap-4 mb-4 rounded-2xl p-[1px] bg-gradient-to-l from-[#f59e0b] via-[#f43f5e] to-[#f59e0b]"
+        >
+          <div className="w-full flex flex-col sm:flex-row items-center gap-3 sm:gap-4 rounded-2xl bg-[var(--oji-surface)] px-5 py-4 text-center sm:text-right">
+            <div className="text-3xl">🏢</div>
+            <div className="flex-1">
+              <div className="font-extrabold">تعرّف على <span className="oji-gradient-text">Oji Agency</span></div>
+              <div className="text-xs text-[var(--oji-muted)]">المؤسسة الأم — وكالة تسويق رقمي متكاملة وباقات تسويق احترافية</div>
+            </div>
+            <span className="shrink-0 px-4 py-2 rounded-xl bg-gradient-to-l from-[#f59e0b] to-[#f43f5e] text-[#06121f] text-sm font-bold group-hover:scale-105 transition">شوف الباقات ↗</span>
+          </div>
+        </a>
+
         {/* oji brain promo */}
         <a
           href="https://oji-brain.site/"
