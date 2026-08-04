@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/anthropic";
-import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
+import { MODEL_IDS, DEFAULT_MODEL, modelParams } from "@/lib/models";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const ai = client.messages.stream({ model, max_tokens: 1500, system: CHAT_PROMPT, messages: msgs });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ai = client.messages.stream({ model, max_tokens: 1500, system: CHAT_PROMPT, messages: msgs, ...modelParams(model) } as any);
         for await (const event of ai) {
           if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
             controller.enqueue(encoder.encode(event.delta.text));

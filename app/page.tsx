@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TEMPLATES, DESIGN_THEMES, PLATFORM_THEMES } from "@/lib/prompts";
-import { MODELS, DEFAULT_MODEL } from "@/lib/models";
+import { MAIN_MODELS, LEGACY_MODELS, DEFAULT_MODEL } from "@/lib/models";
 import { useUser } from "@/lib/supabase/useUser";
 import { getSupabase } from "@/lib/supabase/client";
 import Footer from "@/components/Footer";
@@ -27,6 +27,7 @@ export default function Home() {
   const [store, setStore] = useState({ name: "", currency: "ج.م", whatsapp: "", payUrl: "", logo: "", count: "8" });
   const [platform, setPlatform] = useState("auto");
   const [platformCustom, setPlatformCustom] = useState("");
+  const [showMoreModels, setShowMoreModels] = useState(false);
   const [designTheme, setDesignTheme] = useState("auto");
   const [showContact, setShowContact] = useState(false);
   const [waNumber, setWaNumber] = useState("");
@@ -312,12 +313,26 @@ export default function Home() {
             </div>
 
             {/* model pills */}
-            <div className="oji-up-2 flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-4">
-              {MODELS.map((mo) => (
-                <button key={mo.id} onClick={() => pickModel(mo.id)} title={`$${mo.inPrice}/$${mo.outPrice} لكل مليون توكن`} className={`px-3 py-1.5 rounded-xl text-xs transition border ${model === mo.id ? "border-[var(--oji-primary)] bg-[var(--oji-primary)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)]"}`}>
-                  {mo.badge} {mo.label} · {mo.speed}
+            <div className="oji-up-2 mb-4">
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                {MAIN_MODELS.map((mo) => (
+                  <button key={mo.id} onClick={() => pickModel(mo.id)} title={`${mo.tagline} · $${mo.inPrice}/$${mo.outPrice} لكل مليون توكن`} className={`px-3 py-1.5 rounded-xl text-xs transition border ${model === mo.id ? "border-[var(--oji-primary)] bg-[var(--oji-primary)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)]"}`}>
+                    {mo.badge} {mo.label} · {mo.speed}
+                  </button>
+                ))}
+                <button onClick={() => setShowMoreModels((v) => !v)} className="px-3 py-1.5 rounded-xl text-xs border border-dashed border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white hover:border-[var(--oji-primary)] transition">
+                  {showMoreModels ? "▾" : "▸"} موديلات أخرى
                 </button>
-              ))}
+              </div>
+              {showMoreModels && (
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-2">
+                  {LEGACY_MODELS.map((mo) => (
+                    <button key={mo.id} onClick={() => pickModel(mo.id)} title={`${mo.tagline} · $${mo.inPrice}/$${mo.outPrice} لكل مليون توكن`} className={`px-3 py-1.5 rounded-xl text-[11px] transition border ${model === mo.id ? "border-[var(--oji-primary)] bg-[var(--oji-primary)]/15 text-white font-bold" : "border-[var(--oji-border)] text-[var(--oji-muted)] hover:text-white"}`}>
+                      {mo.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* store / platform-theme details */}

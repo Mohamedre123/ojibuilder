@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/anthropic";
-import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
+import { MODEL_IDS, DEFAULT_MODEL, modelParams } from "@/lib/models";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
 export const maxDuration = 30;
@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
       max_tokens: 500,
       system: SUGGEST_PROMPT,
       messages: [{ role: "user", content: `الموقع الحالي:\n${html.slice(0, LIMITS.MAX_HTML_CHARS)}` }],
-    });
+      ...modelParams(model),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
     const text = msg.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
     const m = text.match(/\{[\s\S]*\}/);
     let suggestions: string[] = [];

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/anthropic";
-import { MODEL_IDS, DEFAULT_MODEL } from "@/lib/models";
+import { MODEL_IDS, DEFAULT_MODEL, modelParams } from "@/lib/models";
 import { EDIT_SYSTEM_PROMPT } from "@/lib/prompts";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
           system: EDIT_SYSTEM_PROMPT,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           messages: [{ role: "user", content: blocks as any }],
-        });
+          ...modelParams(model),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
         for await (const event of ai) {
           if (event.type === "message_start") {
             usageIn = event.message.usage?.input_tokens ?? 0;

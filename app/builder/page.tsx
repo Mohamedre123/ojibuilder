@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
+import { MAIN_MODELS, LEGACY_MODELS, DEFAULT_MODEL, estimateCost } from "@/lib/models";
 import { useUser } from "@/lib/supabase/useUser";
 import { getSupabase } from "@/lib/supabase/client";
 import VoiceButton from "@/components/VoiceButton";
@@ -1338,9 +1338,16 @@ ${anchor}
             title="اختر نموذج الذكاء الاصطناعي"
             className="px-2.5 py-1.5 rounded-lg border border-[var(--oji-border)] bg-[var(--oji-surface-2)] text-sm outline-none hover:border-[var(--oji-primary)] disabled:opacity-50 cursor-pointer"
           >
-            {MODELS.map((mo) => (
-              <option key={mo.id} value={mo.id}>{mo.badge} {mo.label} · {mo.speed}</option>
-            ))}
+            <optgroup label="الأحدث">
+              {MAIN_MODELS.map((mo) => (
+                <option key={mo.id} value={mo.id}>{mo.badge} {mo.label} · {mo.speed}</option>
+              ))}
+            </optgroup>
+            <optgroup label="موديلات أخرى">
+              {LEGACY_MODELS.map((mo) => (
+                <option key={mo.id} value={mo.id}>{mo.label}</option>
+              ))}
+            </optgroup>
           </select>
           <button onClick={goProjects} className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">مشاريعي</button>
           <button onClick={() => router.push("/contact")} title="تواصل معنا" className="px-3 py-1.5 rounded-lg border border-[var(--oji-border)] text-sm hover:border-[var(--oji-primary)] transition whitespace-nowrap">☎ تواصل</button>
